@@ -1,4 +1,5 @@
 import pygame as pg
+import pygame.draw as dr
 
 
 class Game:
