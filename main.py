@@ -87,7 +87,7 @@ class Button:
         self.main_color = main_color
         self.light_main_color = main_color
         self.back_color = back_color
-        self.num_of_change = 0
+        self.num_of_change = 0  # Количество отображений до конца подсветки
         self.function = slot
 
     def slot(self):
@@ -111,6 +111,7 @@ class Button:
         text = font.render(self.current_text, True, self.light_main_color)
         screen.blit(text, (self.x + self.w // 2 - text.get_width() // 2,
                            self.y + self.h // 2 - text.get_height() // 2))
+        # Регулировка подсветки:
         if self.num_of_change == 0:
             self.light_main_color = self.main_color
         else:
@@ -153,8 +154,11 @@ class TextDisplay:
         item = item_font.render(self.item, True, self.main_color)
         item_x = self.x + self.w // 2 - item.get_width() // 2
         if self.image is not None:
-            item_x = self.x + self.w - item.get_width() - 30
-            # Загружаем картинку
+            item_x = self.x + self.w - item.get_width() - self.w // 8
+            im = tr.scale(load_image('Platform.png', -1), (5 * self.w // 8,
+                                                           item.get_height()))
+            screen.blit(im, (self.x + round(self.w // 8),
+                        self.y + self.h - item.get_height() - 10))
         screen.blit(item, (item_x, self.y + self.h - item.get_height() - 5))
 
     def set_item(self, item):
@@ -239,7 +243,8 @@ class Game:
                     for but in self.buttons:
                         if event.pos in but:
                             but.slot()
-                    if self.platform.rect.collidepoint(event.pos):
+                    if self.platform.rect.collidepoint(event.pos) and\
+                            not self.pause:
                         self.platform_selected = True
                         self.platform.set_select(True, event.pos)
                 if event.type == SECOND:
@@ -254,16 +259,16 @@ class Game:
                         self.buttons[2].slot()  # Выход
                 if event.type == pg.MOUSEMOTION:
                     self.cursor.rect.topleft = event.pos
-                    if self.platform_selected:
+                    if self.platform_selected and not self.pause:
                         self.platform.update(event.pos[0] -\
                                              self.platform.rect.x)
                 if event.type == pg.MOUSEBUTTONUP:
                     self.platform_selected = False
                     self.platform.set_select(False)
-            if pg.key.get_pressed()[pg.K_LEFT]:
+            if pg.key.get_pressed()[pg.K_LEFT] and not self.pause:
                 if not pg.key.get_mods() & pg.KMOD_SHIFT:
                     self.platform.update(-10)
-            if pg.key.get_pressed()[pg.K_RIGHT]:
+            if pg.key.get_pressed()[pg.K_RIGHT] and not self.pause:
                 if not pg.key.get_mods() & pg.KMOD_SHIFT:
                     self.platform.update(10)
 
