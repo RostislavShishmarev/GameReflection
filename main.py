@@ -36,7 +36,7 @@ def get_width(surface, height):
 
 class Platform(spr.Sprite):
     def __init__(self, parent, group):
-        super().__init__()
+        super().__init__(group)
         self.parent = parent
         image = load_image("Platform.png", -1)
         self.h = 80
@@ -46,12 +46,15 @@ class Platform(spr.Sprite):
         self.rect.x =  self.parent.w // 2 - self.w // 2
         self.rect.y = 650
         self.selected_delta_x = 0
-        self.add(group)
+        self.edge = 30
 
     def update(self, delta_x):
         x = self.rect.x + delta_x - self.selected_delta_x
-        self.rect.x = x if x >= 0 and x <= self.parent.w - self.w\
-            else self.rect.x
+        if x >= 0 and x <= self.parent.w - self.w:
+            self.rect.x = x
+            if self.parent.start:
+                self.parent.triplex.update(delta_x=delta_x -\
+                                                   self.selected_delta_x)
 
     def set_platform_size(self, size='middle'):
         name = {'short': "Short_platform.png", 'long': "Long_platform.png",
@@ -69,8 +72,28 @@ class Platform(spr.Sprite):
         self.rect.y = 650
 
     def set_select(self, select, pos=None):
+        # Задание точки перетаскивания относительно левого края
         pos = (self.rect.x, self.rect.y) if pos is None else pos
         self.selected_delta_x = pos[0] - self.rect.x if select else 0
+
+
+class Triplex(spr.Sprite):
+    def __init__(self, parent, group):
+        super().__init__(group)
+        self.parent = parent
+        self.h = self.w = 50
+        self.image = tr.scale(load_image("Triplex.png"), (self.w, self.h))
+        self.rect = self.image.get_rect()
+        self.rect.x = self.parent.w // 2 - self.w // 2
+        self.rect.y = 600
+
+    def update(self, vx=0, vy=0, delta_x=0):
+        x = self.rect.x + delta_x
+        ed = self.parent.platform.edge
+        condition = x >= self.parent.platform.rect.x + ed and\
+                    x <= self.parent.platform.rect.x +\
+                         self.parent.platform.rect.w - self.w - ed
+        self.rect.x = x if condition else self.rect.x
 
 
 class Button:
@@ -226,8 +249,10 @@ class Game:
         self.screen.fill(background_color)
         pg.time.set_timer(SECOND, 1000)
         pg.mouse.set_visible(False)
+        pg.display.set_icon(load_image('Reflection_logo_2.png'))
 
         # Создаём спрайты:
+        self.triplex = Triplex(self, self.all_sprites)
         self.platform = Platform(self, self.all_sprites)
         self.cursor = spr.Sprite(self.cursor_group)
         self.cursor.image = load_image("cursor.png")
@@ -268,9 +293,13 @@ class Game:
             if pg.key.get_pressed()[pg.K_LEFT] and not self.pause:
                 if not pg.key.get_mods() & pg.KMOD_SHIFT:
                     self.platform.update(-10)
+                else:
+                    self.triplex.update(delta_x=-5)
             if pg.key.get_pressed()[pg.K_RIGHT] and not self.pause:
                 if not pg.key.get_mods() & pg.KMOD_SHIFT:
                     self.platform.update(10)
+                else:
+                    self.triplex.update(delta_x=5)
 
             # Отрисовка элементов:
             self.screen.fill(background_color)
