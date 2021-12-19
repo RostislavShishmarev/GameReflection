@@ -96,6 +96,25 @@ class Triplex(spr.Sprite):
         self.rect.x = x if condition else self.rect.x
 
 
+class VerticalBorder(spr.Sprite):
+    def __init__(self, parent, group):
+        super().__init__(group)
+        self.parent = parent
+        self.h = self.w = 50
+        self.image = tr.scale(load_image("Triplex.png"), (self.w, self.h))
+        self.rect = self.image.get_rect()
+        self.rect.x = self.parent.w // 2 - self.w // 2
+        self.rect.y = 600
+
+
+class TopBorder(spr.Sprite):
+    pass
+
+
+class BottomBorder(spr.Sprite):
+    pass
+
+
 class Button:
     def __init__(self, parent, x, y, w, h, text, font_size=40,
                  main_color=pg.Color(70, 202, 232),
