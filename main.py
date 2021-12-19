@@ -54,11 +54,14 @@ class Platform(spr.Sprite):
 
     def update(self, delta_x):
         x = self.rect.x + delta_x - self.selected_delta_x
-        if x >= 0 and x <= self.parent.w - self.w:
-            self.rect.x = x
-            if self.parent.start:
-                self.parent.triplex.update(delta_x=delta_x -\
-                                                   self.selected_delta_x)
+        if x < self.parent.border_w:
+            x = self.parent.border_w
+        if x > self.parent.w - self.w - self.parent.border_w:
+             x = self.parent.w - self.w - self.parent.border_w
+        delta_x = x - self.rect.x
+        self.rect.x = x
+        if self.parent.start:
+            self.parent.triplex.update(delta_x=delta_x)
 
     def set_platform_size(self, size='middle'):
         name = {'short': "Short_platform.png", 'long': "Long_platform.png",
@@ -108,7 +111,7 @@ class Triplex(spr.Sprite):
         self.parent = parent
 
         self.h = self.w = 50
-        self.image = tr.scale(load_image("Triplex.png"), (self.w, self.h))
+        self.image = tr.scale(load_image("Triplex2.png", -1), (self.w, self.h))
         self.rect = self.image.get_rect()
         self.rect.x = self.parent.w // 2 - self.w // 2
         self.rect.y = 602
@@ -129,7 +132,11 @@ class Triplex(spr.Sprite):
         # Движение:
         self.rect.x += self.vx
         self.rect.y += self.vy
-        if self.rect.y >= self.parent.death_y:
+        if self.rect.y + self.h >= self.parent.death_y or\
+                        self.rect.y < self.parent.blocks_top -\
+                self.parent.border_w or\
+                        self.rect.x <= 0 or\
+                                self.rect.x + self.w >= self.parent.w:
             self.parent.die()
 
         # Отскоки от стенок:
@@ -275,9 +282,10 @@ class Game:
         self.size = (self.w, self.h) = (1210, 820)
         self.blocks_left = 20
         self.blocks_top = 140
+        self.field_bottom = 730
         self.block_width = 90
         self.block_height = 50
-        self.death_y = 730
+        self.death_y = 690
         self.border_w = 20
 
         # Флаги:
@@ -339,7 +347,7 @@ class Game:
                self.blocks_left, self.blocks_top - self.border_w,
                len(self.blocks[0]) * self.block_width, self.border_w, 0)
         Border(self, (self.all_sprites, ),
-               self.blocks_left, self.death_y,
+               self.blocks_left, self.field_bottom,
                len(self.blocks[0]) * self.block_width, self.border_w, 0)
         self.cursor = spr.Sprite(self.cursor_group)
         self.cursor.image = load_image("cursor.png")
@@ -435,14 +443,19 @@ class Game:
     def die(self):
         self.all_sprites.remove(self.triplex)
         self.all_sprites.remove(self.platform)
-        self.lifes -= 1
+        if not self.start:
+            self.lifes -= 1
+        self.start = True
         if self.lifes <= 0:
+            self.buttons[0].slot = do_nothing
+            self.buttons[1].slot = do_nothing
             self.pause = True
-            # game over
         else:
             self.triplex = Triplex(self, self.all_sprites)
             self.platform = Platform(self, self.all_sprites)
-            self.start = True
+
+    def no_blocks(self):
+        return True
 
 
 class MainWindow:
