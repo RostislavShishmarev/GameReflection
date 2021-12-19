@@ -38,6 +38,7 @@ class Platform(spr.Sprite):
     def __init__(self, parent, group):
         super().__init__(group)
         self.parent = parent
+
         image = load_image("Platform.png", -1)
         self.h = 80
         self.w = get_width(image, self.h)
@@ -46,7 +47,10 @@ class Platform(spr.Sprite):
         self.rect.x =  self.parent.w // 2 - self.w // 2
         self.rect.y = 650
         self.selected_delta_x = 0
+        self.set_dict()
         self.edge = 30
+
+        self.mask = pg.mask.from_surface(self.image)
 
     def update(self, delta_x):
         x = self.rect.x + delta_x - self.selected_delta_x
@@ -70,49 +74,96 @@ class Platform(spr.Sprite):
         self.rect = self.image.get_rect()
         self.rect.x = min(old_x, self.parent.w - self.rect.w)
         self.rect.y = 650
+        self.set_dict()
 
     def set_select(self, select, pos=None):
         # Задание точки перетаскивания относительно левого края
         pos = (self.rect.x, self.rect.y) if pos is None else pos
         self.selected_delta_x = pos[0] - self.rect.x if select else 0
 
+    def set_dict(self):
+        self.angles_dict = {range(0, self.w // 10): (-7, -3),
+                            range(self.w // 10, 2 * self.w // 10): (-5, -5),
+                            range(2 * self.w // 10, 3 * self.w // 10): (-4, -6),
+                            range(3 * self.w // 10, 4 * self.w // 10): (-3, -7),
+                            range(4 * self.w // 10, 9 * self.w // 20): (-2, -8),
+                            range(9 * self.w // 20, 11 * self.w // 20): (0, -9),
+                            range(11 * self.w // 20, 6 * self.w // 10): (2, -8),
+                            range(6 * self.w // 10, 7 * self.w // 10): (3, -7),
+                            range(7 * self.w // 10, 8 * self.w // 10): (4, -6),
+                            range(8 * self.w // 10, 9 * self.w // 10): (5, -5),
+                            range(9 * self.w // 10, self.w): (7, -3)}
+
+    def collide_triplex(self, point):
+        x = point[0]
+        for range_ in self.angles_dict.keys():
+            if x in range_:
+                self.parent.triplex.set_vx(self.angles_dict[range_][0])
+                self.parent.triplex.set_vy(self.angles_dict[range_][1])
+
 
 class Triplex(spr.Sprite):
     def __init__(self, parent, group):
         super().__init__(group)
         self.parent = parent
+
         self.h = self.w = 50
         self.image = tr.scale(load_image("Triplex.png"), (self.w, self.h))
         self.rect = self.image.get_rect()
         self.rect.x = self.parent.w // 2 - self.w // 2
-        self.rect.y = 600
+        self.rect.y = 602
+        self.vx = self.vy = 0
 
-    def update(self, vx=0, vy=0, delta_x=0):
-        x = self.rect.x + delta_x
-        ed = self.parent.platform.edge
-        condition = x >= self.parent.platform.rect.x + ed and\
-                    x <= self.parent.platform.rect.x +\
-                         self.parent.platform.rect.w - self.w - ed
-        self.rect.x = x if condition else self.rect.x
+        self.mask = pg.mask.from_surface(self.image)
+
+    def update(self, delta_x=0):
+        # Движение по платформе:
+        if delta_x:
+            x = self.rect.x + delta_x
+            ed = self.parent.platform.edge
+            condition = x >= self.parent.platform.rect.x + ed and\
+                        x <= self.parent.platform.rect.x +\
+                             self.parent.platform.rect.w - self.w - ed
+            self.rect.x = x if condition else self.rect.x
+
+        # Движение:
+        self.rect.x += self.vx
+        self.rect.y += self.vy
+        if self.rect.y >= self.parent.death_y:
+            self.parent.die()
+
+        # Отскоки от стенок:
+        border = spr.spritecollideany(self, self.parent.borders)
+        if border is not None:
+            if border.location == 'ver':
+                self.vx = -self.vx
+            else:
+                self.vy = -self.vy
+
+        # Отскоки от платформы:
+        point = spr.collide_mask(self.parent.platform, self)
+        if point is not None and not self.parent.start:
+            self.parent.platform.collide_triplex(point)
+
+    def set_vx(self, vx):
+        self.vx = vx
+
+    def set_vy(self, vy):
+        self.vy = vy
 
 
-class VerticalBorder(spr.Sprite):
-    def __init__(self, parent, group):
-        super().__init__(group)
+class Border(spr.Sprite):
+    def __init__(self, parent, groups, x, y, w, h, degree):
+        super().__init__(*groups)
         self.parent = parent
-        self.h = self.w = 50
-        self.image = tr.scale(load_image("Triplex.png"), (self.w, self.h))
+        self.h = h
+        self.w = w
+        self.image = tr.scale(tr.rotate(load_image("Border.png"), degree),
+                              (self.w, self.h))
         self.rect = self.image.get_rect()
-        self.rect.x = self.parent.w // 2 - self.w // 2
-        self.rect.y = 600
-
-
-class TopBorder(spr.Sprite):
-    pass
-
-
-class BottomBorder(spr.Sprite):
-    pass
+        self.rect.x = x
+        self.rect.y = y
+        self.location = 'hor' if self.w > self.h else 'ver'
 
 
 class Button:
@@ -226,6 +277,8 @@ class Game:
         self.blocks_top = 140
         self.block_width = 90
         self.block_height = 50
+        self.death_y = 730
+        self.border_w = 20
 
         # Флаги:
         self.pause = False
@@ -234,21 +287,22 @@ class Game:
         self.platform_selected = False
 
         # Создаём виджеты:
-        self.buttons = [Button(self, 20, self.h - 70, 350, 50,
+        self.buttons = [Button(self, 20, self.h - 60, 350, 50,
                                'Сохранить', slot=self.save),
-                        Button(self, self.w // 2 - 175, self.h - 70, 350, 50,
+                        Button(self, self.w // 2 - 175, self.h - 60, 350, 50,
                                'Пауза', slot=self.change_pause,
                                text2='Продолжить'),
-                        Button(self, self.w - 370, self.h - 70, 350, 50,
+                        Button(self, self.w - 370, self.h - 60, 350, 50,
                                'Выход', slot=self.exit)]
-        self.displays = [TextDisplay(self, 20, 20, 300, 100,
+        self.displays = [TextDisplay(self, 20, 10, 300, 100,
                                      'Очки', str(self.score)),
-                         TextDisplay(self, self.w // 2 - 150, 20, 300, 100,
+                         TextDisplay(self, self.w // 2 - 150, 10, 300, 100,
                                      'Жизни', str(self.lifes), image=0),
-                         TextDisplay(self, self.w - 320, 20, 300, 100,
+                         TextDisplay(self, self.w - 320, 10, 300, 100,
                                      'Время', self.time.strftime('%M:%S'))]
         self.all_sprites = spr.Group()
         self.cursor_group = spr.Group()
+        self.borders = spr.Group()
 
         # Открываем модель расположения блоков:
         with open(self.mod_name, encoding='utf8') as model:
@@ -265,7 +319,9 @@ class Game:
         # Задаём параметры окну:
         pg.display.set_caption('Отражение')
         self.screen = pg.display.set_mode(self.size)
-        self.screen.fill(background_color)
+        im = load_image('Fone.png')
+        fone = tr.scale(im, (get_width(im, self.h), self.h))
+        self.screen.blit(fone, (0, 0))
         pg.time.set_timer(SECOND, 1000)
         pg.mouse.set_visible(False)
         pg.display.set_icon(load_image('Reflection_logo_2.png'))
@@ -273,6 +329,18 @@ class Game:
         # Создаём спрайты:
         self.triplex = Triplex(self, self.all_sprites)
         self.platform = Platform(self, self.all_sprites)
+        Border(self, (self.borders, self.all_sprites),
+               self.blocks_left + len(self.blocks[0]) * self.block_width,
+               self.blocks_top - self.border_w, self.border_w, 630, 90)
+        Border(self, (self.borders, self.all_sprites),
+               self.blocks_left - self.border_w,
+               self.blocks_top - self.border_w, self.border_w, 630, 90)
+        Border(self, (self.borders, self.all_sprites),
+               self.blocks_left, self.blocks_top - self.border_w,
+               len(self.blocks[0]) * self.block_width, self.border_w, 0)
+        Border(self, (self.all_sprites, ),
+               self.blocks_left, self.death_y,
+               len(self.blocks[0]) * self.block_width, self.border_w, 0)
         self.cursor = spr.Sprite(self.cursor_group)
         self.cursor.image = load_image("cursor.png")
         self.cursor.rect = self.cursor.image.get_rect()
@@ -301,6 +369,9 @@ class Game:
                         self.buttons[0].slot()  # Сохранить
                     if event.key == pg.K_HOME and (event.mod & pg.KMOD_CTRL):
                         self.buttons[2].slot()  # Выход
+                    if event.key == pg.K_UP:
+                        print('start')
+                        self.start = False
                 if event.type == pg.MOUSEMOTION:
                     self.cursor.rect.topleft = event.pos
                     if self.platform_selected and not self.pause:
@@ -322,12 +393,17 @@ class Game:
 
             # Отрисовка элементов:
             self.screen.fill(background_color)
+            self.screen.blit(fone, (0, 0))
             self.render()
             for el in self.buttons + self.displays:
                 el.render()
             self.all_sprites.draw(self.screen)
             if pg.mouse.get_focused():
                 self.cursor_group.draw(self.screen)
+
+            # Движение:
+            if not self.pause:
+                self.triplex.update()
 
             # Обновление элементов дисплеев:
             for i, el in enumerate((str(self.score), str(self.lifes),
@@ -343,9 +419,6 @@ class Game:
         x, y = self.blocks_left, self.blocks_top
         for i, row in enumerate(self.blocks):
             for j, el in enumerate(row):
-                dr.rect(self.screen, pg.Color('white'),
-                        (x, y, self.block_width, self.block_height),
-                        width=2)  # Временно для проверки
                 x += self.block_width
             y += self.block_height
             x = self.blocks_left
@@ -358,6 +431,18 @@ class Game:
 
     def save(self):
         print('Saved.')
+
+    def die(self):
+        self.all_sprites.remove(self.triplex)
+        self.all_sprites.remove(self.platform)
+        self.lifes -= 1
+        if self.lifes <= 0:
+            self.pause = True
+            # game over
+        else:
+            self.triplex = Triplex(self, self.all_sprites)
+            self.platform = Platform(self, self.all_sprites)
+            self.start = True
 
 
 class MainWindow:
