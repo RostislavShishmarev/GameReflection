@@ -11,10 +11,15 @@ from datetime import datetime as DateTime
 from datetime import timedelta as TimeDelta
 import os
 
+def load_image(name):
+    fullname = os.path.join('Images', name)
+    # если файл не существует, то выходим
+    if not os.path.isfile(fullname):
+        print(f"Файл с изображением '{fullname}' не найден")
+        sys.exit()
+    image = pygame.image.load(fullname)
+    return image
 
-class Game:
-    def __init__(self, csv_model_name, score, time, lifes):
-        pass
 
 
 class MainWindow:
@@ -22,48 +27,50 @@ class MainWindow:
         pygame.init()
         #Экран
         size = width, height = 1240, 700
-        screen = pygame.display.set_mode(size, HWSURFACE | DOUBLEBUF | RESIZABLE)
+        screen = pygame.display.set_mode(size, RESIZABLE)
+        fone1 = tr.scale(load_image('Fone.png'), (1707, 1004))
         #Иконка
         pg.display.set_caption('Отражение')
-        pg.display.set_icon(self.load_image('Reflection_logo_2.png'))
+        pg.display.set_icon(load_image('Reflection_logo_2.png'))
         #Флаг
         pygame.mouse.set_visible(False)
+        running = True
         #Цикл
-        while pygame.event.wait().type != pygame.QUIT:
-            #Фон
-            win = pygame.display.get_surface()
-            x = win.get_width()
-            y = win.get_height()
-            fone1 = tr.scale(self.load_image('Fone.png'), (x, y))
-            # Курсор
-            image = self.load_image('Cursor.png')
-            cursor_img_rect = image.get_rect()
-            cursor_img_rect.center = pygame.mouse.get_pos()
-            screen.blit(image, cursor_img_rect)
-            #Фон и кнопки
-            pygame.display.flip()
-            screen.blit(fone1, (0, 0))
-            self.draw(screen, x - 140, y - 55)
+        while running:
+            for event in pygame.event.get():
+                # при закрытии окна
+                if event.type == pygame.QUIT:
+                    running = False
+                #Окно
+                win = pygame.display.get_surface()
+                x = win.get_width()
+                y = win.get_height()
+                # Курсор
+                if pg.mouse.get_focused():
+                    image = load_image('Cursor.png')
+                    cursor_img_rect = image.get_rect()
+                    cursor_img_rect.center = pygame.mouse.get_pos()
+                    screen.blit(image, cursor_img_rect)
+                #Фон и кнопки
+                pygame.display.flip()
+                screen.blit(fone1, (0, 0))
+                self.exit_btn(screen, x - 75, y - 75)
+                if pg.mouse.get_pos()[0] >= x - 75 and pg.mouse.get_pos()[1] >= y - 75:
+                    if event.type == pygame.MOUSEBUTTONDOWN:
+                        running = False
         pygame.quit()
 
-    def load_image(self, name, colorkey=None):
-        fullname = os.path.join('Images', name)
-        # если файл не существует, то выходим
-        if not os.path.isfile(fullname):
-            print(f"Файл с изображением '{fullname}' не найден")
-            sys.exit()
-        image = pygame.image.load(fullname)
-        return image
-
-    def draw(self, screen, x, y):
-        font = pygame.font.Font(None, 50)
-        text = font.render("Выход", True, (100, 255, 100))
-        text_x = x
-        text_y = y
-        text_w = text.get_width()
-        text_h = text.get_height()
-        pygame.draw.rect(screen, (100, 255, 100), (text_x - 10, text_y - 10, text_w + 20, text_h + 20), 1)
-        screen.blit(text, (text_x, text_y))
+    def exit_btn(self, screen, x, y):
+        exit = tr.scale(load_image('Exit.png'), (56, 56))
+        exit1 = tr.scale(load_image('Exit_light.png'), (56, 56))
+        w = exit.get_width()
+        h = exit.get_height()
+        pygame.draw.rect(screen, ((70, 202, 232)), (x - 2, y - 2, w + 4, h + 4), 2)
+        screen.blit(exit, (x, y))
+        if pg.mouse.get_pos()[0] >= x and pg.mouse.get_pos()[1] >= y:
+            pygame.draw.rect(screen, ((160, 255, 255)), (x - 2, y - 2, w + 4, h + 4), 2)
+            screen.blit(exit1, (x, y))
+        #цвет - (100, 255, 100), цвет2 - (70, 202, 232)
 
 
 
