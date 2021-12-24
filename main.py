@@ -37,7 +37,10 @@ def get_width(surface, height):
 class AnimatedSprite(spr.Sprite):
     def __init__(self, names, *groups, h=None):
         super().__init__(*groups)
-        self.frames = list(map(lambda x: load_image(*names), names))
+        self.make_frames(names, h)
+
+    def make_frames(self, names, h=None):
+        self.frames = list(map(lambda x: load_image(*x), names))
         self.cur_index = 0
         if h is not None:
             self.h = h
@@ -52,16 +55,14 @@ class AnimatedSprite(spr.Sprite):
         self.image = self.frames[self.cur_index]
 
 
-class Platform(spr.Sprite):
-    def __init__(self, parent, group):
-        super().__init__(group)
+class Platform(AnimatedSprite):
+    def __init__(self, parent, *groups):
+        self.names = [("Platform.png", -1), ("Platform_crushing_1.png", -1),
+                      ("Platform_crushing_2.png", -1)]
+        super().__init__(self.names, *groups, h=80)
         self.parent = parent
+        self.groups = groups
 
-        image = load_image("Platform.png", -1)
-        self.h = 80
-        self.w = get_width(image, self.h)
-        self.image = tr.scale(image, (self.w, self.h))
-        self.rect = self.image.get_rect()
         self.rect.x = self.parent.w // 2 - self.w // 2
         self.rect.y = 650
         self.selected_delta_x = 0
@@ -69,11 +70,11 @@ class Platform(spr.Sprite):
 
         self.edge = 30
         self.crushing = False
-        self.crushing_cadres = 15
+        self.crushing_cadres = self.cur_cadres = 20
 
         self.mask = pg.mask.from_surface(self.image)
 
-    def update(self, delta_x):
+    def update(self, delta_x=0):
         if delta_x:
             x = self.rect.x + delta_x - self.selected_delta_x
             if x < self.parent.border_w:
@@ -85,34 +86,26 @@ class Platform(spr.Sprite):
             if self.parent.start:
                 self.parent.triplex.update(delta_x=delta_x)
         if self.crushing:
-            self.crushing_cadres -= 1
-            old_x, old_y = self.rect.topleft
-            if self.crushing_cadres == 10:
-                self.image = load_image("Platform_crushing_1.png", -1)
-            if self.crushing_cadres == 5:
-                self.image = load_image("Platform_crushing_2.png", -1)
-            self.image = tr.scale(self.image, (self.w, self.h))
-            self.rect = self.image.get_rect()
-            self.rect.topleft = (old_x, old_y)
-
-            if self.crushing_cadres <= 0:
-                self.crushing_cadres = 15
+            self.cur_cadres -= 1
+            if self.cur_cadres in [self.crushing_cadres // len(self.names) * i
+                                   for i in range(1, len(self.names))]:
+                self.update_image()
+            if self.cur_cadres <= 0:
+                self.cur_cadres = self.crushing_cadres
                 self.parent.end_die()
 
     def set_platform_size(self, size='middle'):
         name = {'short': "Short_platform.png", 'long': "Long_platform.png",
                 'middle': "Platform.png"}.get(size, None)
-        old_x = self.rect.x
         if name is None:
             print('Некорректный размер.')
             return
-        image = load_image(name, -1)
-        self.h = 80
-        self.w = get_width(image, self.h)
-        self.image = tr.scale(image, (self.w, self.h))
-        self.rect = self.image.get_rect()
-        self.rect.x = min(old_x, self.parent.w - self.rect.w)
-        self.rect.y = 650
+        old_x, old_y = self.rect.x, self.rect.y
+        self.names = [(name, -1)] + self.names[1:]
+        self.make_frames(self.names, h=self.h)
+        self.rect.x = old_x
+        self.rect.y = old_y
+        self.mask = pg.mask.from_surface(self.image)
         self.set_dict()
 
     def set_select(self, select, pos=None):
