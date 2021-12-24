@@ -34,6 +34,24 @@ def get_width(surface, height):
     return round(surface.get_size()[0] * (height / surface.get_size()[1]))
 
 
+class AnimatedSprite(spr.Sprite):
+    def __init__(self, names, *groups, h=None):
+        super().__init__(*groups)
+        self.frames = list(map(lambda x: load_image(*names), names))
+        self.cur_index = 0
+        if h is not None:
+            self.h = h
+            self.w = get_width(self.frames[self.cur_index], self.h)
+            self.frames = list(map(lambda x: tr.scale(x, (self.w, self.h)),
+                                   self.frames))
+        self.image = self.frames[self.cur_index]
+        self.rect = self.image.get_rect()
+
+    def update_image(self):
+        self.cur_index = (self.cur_index + 1) % len(self.frames)
+        self.image = self.frames[self.cur_index]
+
+
 class Platform(spr.Sprite):
     def __init__(self, parent, group):
         super().__init__(group)
@@ -78,7 +96,7 @@ class Platform(spr.Sprite):
             self.rect.topleft = (old_x, old_y)
 
             if self.crushing_cadres <= 0:
-                self.crushing_cadres = 10
+                self.crushing_cadres = 15
                 self.parent.end_die()
 
     def set_platform_size(self, size='middle'):
@@ -321,6 +339,7 @@ class Game:
         self.running = True
         self.start = True
         self.platform_selected = False
+        self.new_window_after_self = None
 
         # Создаём виджеты:
         self.buttons = [Button(self, 20, self.h - 60, 350, 50,
@@ -449,6 +468,8 @@ class Game:
             clock.tick(self.FPS)
             pg.display.flip()
         pg.quit()
+        if self.new_window_after_self is not None:
+            self.new_window_after_self.run()
 
     def render(self):
         # Матрица блоков:
@@ -494,10 +515,9 @@ class Game:
 
     def restart(self):
         self.exit()
-        self.window = Game(self.parent,
-                           self.mod_name.split('_')[0] + '_StartModel.csv')
-        pg.quit()
-        self.window.run()
+        self.new_window_after_self = Game(self.parent,
+                                          self.mod_name.split('_')[0] +\
+                                          '_StartModel.csv')
 
     def no_blocks(self):
         return True
