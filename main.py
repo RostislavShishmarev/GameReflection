@@ -243,7 +243,13 @@ class Block(spr.Sprite):
         self.mask = pg.mask.from_surface(self.image)
 
     def crush(self):
-        pass
+        self.parent.all_sprites.remove(self)
+        self.parent.blocks_group.remove(self)
+        self.parent.blocks[self.i][self.j] = None
+        for bord in self.borders:
+            self.parent.all_sprites.remove(bord)
+            self.parent.blocks_group.remove(bord)
+        self.parent.score += 100
 
     def collide_triplex(self, point):
         old_x, old_y = point
@@ -521,6 +527,8 @@ class Game:
 
             clock.tick(self.FPS)
             pg.display.flip()
+            if self.no_blocks():
+                self.win()
         pg.quit()
         if self.new_window_after_self is not None:
             self.new_window_after_self.run()
@@ -578,6 +586,18 @@ class Game:
             self.platform = Platform(self, self.all_sprites)
             self.triplex = Triplex(self, self.all_sprites)
 
+    def win(self):
+        self.buttons[0].function = self.restart
+        self.buttons[0].text = self.buttons[0].current_text = 'Начать \
+сначала'
+        self.buttons[1].slot = do_nothing
+        self.pause = True
+        you_win = spr.Sprite(self.all_sprites)
+        you_win.image = load_image('You_win.png', -1)
+        you_win.rect = you_win.image.get_rect()
+        you_win.rect.topleft = (self.w // 2 - you_win.rect[2] // 2,
+                                self.h // 2 - you_win.rect[3] // 2)
+
     def restart(self):
         self.exit()
         self.new_window_after_self = Game(self.parent,
@@ -585,7 +605,7 @@ class Game:
                                           '_StartModel.csv')
 
     def no_blocks(self):
-        return True
+        return all([b is None for row in self.blocks for b in row])
 
 
 class MainWindow:
