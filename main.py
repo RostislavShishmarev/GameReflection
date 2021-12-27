@@ -59,12 +59,12 @@ class Platform(AnimatedSprite):
     def __init__(self, parent, *groups):
         self.names = [("Platform.png", -1), ("Platform_crushing_1.png", -1),
                       ("Platform_crushing_2.png", -1)]
-        super().__init__(self.names, *groups, h=80)
+        super().__init__(self.names, *groups, h=60)
         self.parent = parent
         self.groups = groups
 
         self.rect.x = self.parent.w // 2 - self.w // 2
-        self.rect.y = 650
+        self.rect.y = self.parent.field_bottom - self.h
         self.selected_delta_x = 0
         self.set_dict()
 
@@ -144,11 +144,11 @@ class Triplex(spr.Sprite):
         super().__init__(group)
         self.parent = parent
 
-        self.h = self.w = 50
-        self.image = tr.scale(load_image("Triplex2.png", -1), (self.w, self.h))
+        self.h = self.w = 40
+        self.image = tr.scale(load_image("Triplex.png", -1), (self.w, self.h))
         self.rect = self.image.get_rect()
         self.rect.x = self.parent.w // 2 - self.w // 2
-        self.rect.y = 602
+        self.rect.y = self.parent.field_bottom - 60 - self.h + 2
         self.vx = self.vy = 0
 
         self.mask = pg.mask.from_surface(self.image)
@@ -184,6 +184,14 @@ class Triplex(spr.Sprite):
         if point is not None and not self.parent.start:
             self.parent.platform.collide_triplex(point)
 
+        # Отскоки от блоков:
+        block = spr.spritecollideany(self, self.parent.blocks_group)
+        if block is not None:
+            point = spr.collide_mask(block, self)
+            if point is not None:
+                block.collide_triplex(point)
+                block.crush()
+
         # Защита от выталкивания за пределы поля:
         if self.rect.y < self.parent.blocks_top:
             self.rect.y = old_y
@@ -210,6 +218,60 @@ class Border(spr.Sprite):
         self.rect.x = x
         self.rect.y = y
         self.location = 'hor' if self.w > self.h else 'ver'
+
+
+class Block(spr.Sprite):
+    def __init__(self, parent, x, y, w, h, i, j, *groups):
+        super().__init__(*groups)
+        self.parent = parent
+        self.w, self.h, self.i, self.j = w, h, i, j
+        self.image = tr.scale(load_image('Block.png'), (self.w, self.h))
+        self.rect = self.image.get_rect()
+        self.rect.topleft = (x, y)
+
+        self.ver_bord_group = spr.Group()
+        self.hor_bord_group = spr.Group()
+        self.borders = [BlockBorder(self, x, y, 1, self.h,
+                                        *list(groups) + [self.ver_bord_group]),
+                        BlockBorder(self, x + self.w - 1, y, 1, self.h,
+                                        *list(groups) + [self.ver_bord_group]),
+                        BlockBorder(self, x + 1, y, self.w - 2, 1,
+                                        *list(groups) + [self.hor_bord_group]),
+                        BlockBorder(self, x + 1, y + self.h - 1, self.w - 2, 1,
+                                        *list(groups) + [self.hor_bord_group])]
+
+        self.mask = pg.mask.from_surface(self.image)
+
+    def crush(self):
+        pass
+
+    def collide_triplex(self, point):
+        old_x, old_y = point
+        old_vx, old_vy = self.parent.triplex.vx, self.parent.triplex.vy
+        ver_bord = spr.spritecollideany(self.parent.triplex,
+                                        self.ver_bord_group)
+        if ver_bord and spr.collide_mask(self.parent.triplex, ver_bord)\
+                and ((old_x < self.w / 2 and old_vx >= 0) or
+                         (old_x > self.w / 2 and old_vx <= 0)):
+            self.parent.triplex.set_vx(-old_vx)
+        hor_bord = spr.spritecollideany(self.parent.triplex,
+                                        self.hor_bord_group)
+        if hor_bord and spr.collide_mask(self.parent.triplex, hor_bord)\
+                and ((old_y < self.h / 2 and old_vy >= 0) or
+                         (old_y > self.h / 2 and old_vy <= 0)):
+            self.parent.triplex.set_vy(-old_vy)
+
+
+class BlockBorder(spr.Sprite):
+    def __init__(self, parent, x, y, w, h, *groups):
+        super().__init__(*groups)
+        self.parent = parent
+        self.w, self.h = w, h
+        self.image = tr.scale(load_image('Block_border.png'), (self.w, self.h))
+        self.rect = self.image.get_rect()
+        self.rect.topleft = (x, y)
+
+        self.mask = pg.mask.from_surface(self.image)
 
 
 class Button:
@@ -308,8 +370,8 @@ class Game:
     def __init__(self, parent, csv_model_name,
                  score=0, time=(0, 0), lifes=4):
         # Задаём атрибуты:
-        self.blocks_dict = {'nothing': None}
-        self.block_code_dict = {None: 'nothing'}
+        self.blocks_dict = {'nothing': None, 'block': Block}
+        self.block_code_dict = {None: 'nothing', Block: 'block'}
 
         self.parent = parent
         self.mod_name = csv_model_name
@@ -351,18 +413,17 @@ class Game:
         self.all_sprites = spr.Group()
         self.cursor_group = spr.Group()
         self.borders = spr.Group()
+        self.blocks_group = spr.Group()
 
         # Открываем модель расположения блоков:
         with open(self.mod_name, encoding='utf8') as model:
-            self.blocks = [[self.blocks_dict[b] for b in row]
-                           for row in list(csv.reader(model, delimiter=';'))]
+            self.blocks_model = list(csv.reader(model, delimiter=';'))
 
     def run(self):
         pg.init()
         # Местные переменные и константы:
         clock = pg.time.Clock()
         SECOND = pg.USEREVENT + 1
-        background_color = pg.Color(31, 30, 38)
 
         # Задаём параметры окну:
         pg.display.set_caption('Отражение')
@@ -372,11 +433,12 @@ class Game:
         self.screen.blit(fone, (0, 0))
         pg.time.set_timer(SECOND, 1000)
         pg.mouse.set_visible(False)
-        pg.display.set_icon(load_image('Reflection_logo_2.png'))
+        pg.display.set_icon(load_image('Reflection_logo.png'))
 
         # Создаём спрайты:
-        self.triplex = Triplex(self, self.all_sprites)
         self.platform = Platform(self, self.all_sprites)
+        self.triplex = Triplex(self, self.all_sprites)
+        self.blocks = self.make_blocks(self.blocks_model)
         Border(self, (self.borders, self.all_sprites),
                self.blocks_left + len(self.blocks[0]) * self.block_width,
                self.blocks_top - self.border_w, self.border_w, 630, 90)
@@ -418,6 +480,7 @@ class Game:
                     if event.key == pg.K_HOME and (event.mod & pg.KMOD_CTRL):
                         self.buttons[2].slot()  # Выход
                     if event.key == pg.K_UP:
+                        print('Start!')
                         self.start = False
                 if event.type == pg.MOUSEMOTION:
                     self.cursor.rect.topleft = event.pos
@@ -439,9 +502,7 @@ class Game:
                     self.triplex.update(delta_x=5)
 
             # Отрисовка элементов:
-            self.screen.fill(background_color)
             self.screen.blit(fone, (0, 0))
-            self.render()
             for el in self.buttons + self.displays:
                 el.render()
             self.all_sprites.draw(self.screen)
@@ -451,7 +512,7 @@ class Game:
             # Движение:
             if not self.pause:
                 self.triplex.update()
-                self.platform.update(0)
+                self.platform.update()
 
             # Обновление элементов дисплеев:
             for i, el in enumerate((str(self.score), str(self.lifes),
@@ -464,14 +525,25 @@ class Game:
         if self.new_window_after_self is not None:
             self.new_window_after_self.run()
 
-    def render(self):
-        # Матрица блоков:
+    def make_blocks(self, model):
+        matrix = []
         x, y = self.blocks_left, self.blocks_top
-        for i, row in enumerate(self.blocks):
+        for i, row in enumerate(model):
+            lst = []
             for j, el in enumerate(row):
                 x += self.block_width
+                block_class = self.blocks_dict[el]
+                if block_class is not None:
+                    block = block_class(self, x, y, self.block_width,
+                                        self.block_height, i, j,
+                                        self.all_sprites, self.blocks_group)
+                else:
+                    block = None
+                lst.append(block)
             y += self.block_height
             x = self.blocks_left
+            matrix.append(lst)
+        return matrix
 
     def change_pause(self):
         self.pause = not self.pause
@@ -503,8 +575,8 @@ class Game:
             g_over.rect.topleft = (self.w // 2 - g_over.rect[2] // 2,
                                    self.h // 2 - g_over.rect[3] // 2)
         else:
-            self.triplex = Triplex(self, self.all_sprites)
             self.platform = Platform(self, self.all_sprites)
+            self.triplex = Triplex(self, self.all_sprites)
 
     def restart(self):
         self.exit()
@@ -521,5 +593,5 @@ class MainWindow:
 
 
 if __name__ == '__main__':
-    window = Game(None, 'DataBases/Level1_StartModel.csv')
+    window = Game(None, 'DataBases/Level2_StartModel.csv')
     window.run()
