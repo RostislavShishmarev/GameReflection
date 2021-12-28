@@ -199,7 +199,6 @@ class Triplex(spr.Sprite):
             point = spr.collide_mask(block, self)
             if point is not None:
                 block.collide_triplex(point)
-                block.crush()
 
         # Защита от выталкивания за пределы поля:
         if self.rect.y < self.parent.blocks_top:
@@ -251,6 +250,7 @@ class Block(spr.Sprite):
                                         *list(groups) + [self.hor_bord_group])]
 
         self.mask = pg.mask.from_surface(self.image)
+        self.crush_score = 100
 
     def crush(self):
         self.parent.all_sprites.remove(self)
@@ -259,9 +259,10 @@ class Block(spr.Sprite):
         for bord in self.borders:
             self.parent.all_sprites.remove(bord)
             self.parent.blocks_group.remove(bord)
-        self.parent.score += 100
+        self.parent.score += self.crush_score
 
     def collide_triplex(self, point):
+        crush_self = False
         old_x, old_y = point
         old_vx, old_vy = self.parent.triplex.vx, self.parent.triplex.vy
         ver_bord = spr.spritecollideany(self.parent.triplex,
@@ -270,12 +271,47 @@ class Block(spr.Sprite):
                 and ((old_x < self.w / 2 and old_vx >= 0) or
                          (old_x > self.w / 2 and old_vx <= 0)):
             self.parent.triplex.set_vx(-old_vx)
+            crush_self = True
         hor_bord = spr.spritecollideany(self.parent.triplex,
                                         self.hor_bord_group)
         if hor_bord and spr.collide_mask(self.parent.triplex, hor_bord)\
                 and ((old_y < self.h / 2 and old_vy >= 0) or
                          (old_y > self.h / 2 and old_vy <= 0)):
             self.parent.triplex.set_vy(-old_vy)
+            crush_self = True
+        if crush_self:
+            self.crush()
+
+
+class ScBlock(Block):
+    def __init__(self, parent, x, y, w, h, i, j, *groups):
+        super().__init__(parent, x, y, w, h, i, j, *groups)
+        self.image = tr.scale(load_image('Sc_block.png'), (self.w, self.h))
+        self.before_crushing = 30
+        self.crush_score = 400
+
+    def crush(self):
+        self.before_crushing -= 1
+        if self.before_crushing <= 0:
+            super().crush()
+
+
+class BrickedBlock(Block):
+    def __init__(self, parent, x, y, w, h, i, j, *groups):
+        super().__init__(parent, x, y, w, h, i, j, *groups)
+        self.image = tr.scale(load_image('Bricked_block.png'),
+                              (self.w, self.h))
+        self.before_crushing = 2
+        self.crush_score = 200
+
+    def crush(self):
+        self.before_crushing -= 1
+        if self.before_crushing == 1:
+            self.image = tr.scale(load_image('Bricked_block_crushing.png'),
+                              (self.w, self.h))
+            self.parent.score += 50
+        if self.before_crushing <= 0:
+            super().crush()
 
 
 class BlockBorder(spr.Sprite):
@@ -386,7 +422,9 @@ class Game:
     def __init__(self, parent, csv_model_name,
                  score=0, time=(0, 0), lifes=4):
         # Задаём атрибуты:
-        self.blocks_dict = {'nothing': None, 'Block.png': Block}
+        self.blocks_dict = {'nothing': None, 'Block.png': Block,
+                            'Sc_block.png': ScBlock,
+                            'Bricked_block.png': BrickedBlock}
         self.block_code_dict = {None: 'nothing', Block: 'Block.png'}
 
         self.parent = parent
@@ -615,7 +653,8 @@ class Game:
                                           '_StartModel.csv')
 
     def no_blocks(self):
-        return all([b is None for row in self.blocks for b in row])
+        return all([b is None or isinstance(b, ScBlock)
+                    for row in self.blocks for b in row])
 
 
 class MainWindow:
@@ -623,5 +662,5 @@ class MainWindow:
 
 
 if __name__ == '__main__':
-    window = Game(None, 'DataBases/Level2_StartModel.csv')
+    window = Game(None, 'DataBases/Level5_StartModel.csv')
     window.run()
