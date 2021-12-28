@@ -70,7 +70,7 @@ class Platform(AnimatedSprite):
 
         self.edge = 30
         self.crushing = False
-        self.crushing_cadres = self.cur_cadres = 20
+        self.crushing_cadres = self.cur_cadres = round(1 / 3 * self.parent.FPS)
 
         self.mask = pg.mask.from_surface(self.image)
 
@@ -114,22 +114,30 @@ class Platform(AnimatedSprite):
         self.selected_delta_x = pos[0] - self.rect.x if select else 0
 
     def set_dict(self):
-        self.angles_dict = {range(0, self.w // 10): (-7, -3),
-                            range(self.w // 10, 2 * self.w // 10): (-5, -5),
-                            range(2 * self.w // 10, 3 * self.w // 10):
-                                (-4, -6),
-                            range(3 * self.w // 10, 4 * self.w // 10):
-                                (-3, -7),
-                            range(4 * self.w // 10, 9 * self.w // 20):
-                                (-2, -8),
-                            range(9 * self.w // 20, 11 * self.w // 20):
-                                (0, -9),
-                            range(11 * self.w // 20, 6 * self.w // 10):
-                                (2, -8),
-                            range(6 * self.w // 10, 7 * self.w // 10): (3, -7),
-                            range(7 * self.w // 10, 8 * self.w // 10): (4, -6),
-                            range(8 * self.w // 10, 9 * self.w // 10): (5, -5),
-                            range(9 * self.w // 10, self.w): (7, -3)}
+        self.angles_dict = {}
+        fps = self.parent.FPS
+        vx, vy = -400 / fps, -40 / fps
+        step = 40 / fps
+        for i in range(0, 9):
+            self.angles_dict[range(self.w // 20 * i,
+                                   self.w // 20 * (i + 1))] = (vx, vy)
+            vx += step
+            vy -= step
+        self.angles_dict[range(self.w // 20 * 9,
+                               self.w // 40 * 19)] = (vx, vy)
+        vx += step
+        vy -= step
+        self.angles_dict[range(self.w // 40 * 19,
+                               self.w // 40 * 21)] = (vx, vy)
+        vx += step
+        vy += step
+        self.angles_dict[range(self.w // 40 * 21,
+                               self.w // 20 * 11)] = (vx, vy)
+        for i in range(11, 20):
+            vx += step
+            vy += step
+            self.angles_dict[range(self.w // 20 * i,
+                                   self.w // 20 * (i + 1))] = (vx, vy)
 
     def collide_triplex(self, point):
         x = point[0]
@@ -148,7 +156,8 @@ class Triplex(spr.Sprite):
         self.image = tr.scale(load_image("Triplex.png", -1), (self.w, self.h))
         self.rect = self.image.get_rect()
         self.rect.x = self.parent.w // 2 - self.w // 2
-        self.rect.y = self.parent.field_bottom - 60 - self.h + 2
+        self.rect.y = self.parent.field_bottom -\
+                      self.parent.platform.h - self.h + 2
         self.vx = self.vy = 0
 
         self.mask = pg.mask.from_surface(self.image)
@@ -194,10 +203,11 @@ class Triplex(spr.Sprite):
 
         # Защита от выталкивания за пределы поля:
         if self.rect.y < self.parent.blocks_top:
-            self.rect.y = old_y
-        if self.rect.x < self.parent.border_w or self.rect.x +\
-                self.w > self.parent.w - self.parent.border_w:
-            self.rect.x = old_x
+            self.rect.y = old_y - 1
+        if self.rect.x < self.parent.border_w:
+            self.rect.x = old_x + 1
+        if self.rect.x + self.w > self.parent.w - self.parent.border_w:
+            self.rect.x = old_x - 1
 
     def set_vx(self, vx):
         self.vx = vx
@@ -385,7 +395,7 @@ class Game:
         self.time = DateTime(2020, 1, 1, 1, *time)
         self.lifes = lifes
 
-        self.FPS = 40
+        self.FPS = 80
         self.size = (self.w, self.h) = (1210, 820)
         self.blocks_left = 20
         self.blocks_top = 140
