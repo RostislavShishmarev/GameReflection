@@ -116,8 +116,8 @@ class Platform(AnimatedSprite):
     def set_dict(self):
         self.angles_dict = {}
         fps = self.parent.FPS
-        vx, vy = -400 / fps, -40 / fps
-        step = 40 / fps
+        vx, vy = -500 / fps, -50 / fps
+        step = 50 / fps
         for i in range(0, 9):
             self.angles_dict[range(self.w // 20 * i,
                                    self.w // 20 * (i + 1))] = (vx, vy)
@@ -386,8 +386,8 @@ class Game:
     def __init__(self, parent, csv_model_name,
                  score=0, time=(0, 0), lifes=4):
         # Задаём атрибуты:
-        self.blocks_dict = {'nothing': None, 'block': Block}
-        self.block_code_dict = {None: 'nothing', Block: 'block'}
+        self.blocks_dict = {'nothing': None, 'Block.png': Block}
+        self.block_code_dict = {None: 'nothing', Block: 'Block.png'}
 
         self.parent = parent
         self.mod_name = csv_model_name
@@ -549,7 +549,6 @@ class Game:
         for i, row in enumerate(model):
             lst = []
             for j, el in enumerate(row):
-                x += self.block_width
                 block_class = self.blocks_dict[el]
                 if block_class is not None:
                     block = block_class(self, x, y, self.block_width,
@@ -557,6 +556,7 @@ class Game:
                                         self.all_sprites, self.blocks_group)
                 else:
                     block = None
+                x += self.block_width
                 lst.append(block)
             y += self.block_height
             x = self.blocks_left
