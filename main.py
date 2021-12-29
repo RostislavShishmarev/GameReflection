@@ -3,9 +3,10 @@ import pygame.draw as dr
 import pygame.transform as tr
 import pygame.sprite as spr
 import csv
+import os
 from datetime import datetime as DateTime
 from datetime import timedelta as TimeDelta
-import os
+from random import choice
 
 
 def load_image(name, color_key=None):
@@ -59,7 +60,7 @@ class Platform(AnimatedSprite):
     def __init__(self, parent, *groups):
         self.names = [("Platform.png", -1), ("Platform_crushing_1.png", -1),
                       ("Platform_crushing_2.png", -1)]
-        super().__init__(self.names, *groups, h=60)
+        super().__init__(self.names, *groups, h=50)
         self.parent = parent
         self.groups = groups
 
@@ -152,7 +153,7 @@ class Triplex(spr.Sprite):
         super().__init__(group)
         self.parent = parent
 
-        self.h = self.w = 40
+        self.h = self.w = 35
         self.image = tr.scale(load_image("Triplex.png", -1), (self.w, self.h))
         self.rect = self.image.get_rect()
         self.rect.x = self.parent.w // 2 - self.w // 2
@@ -251,6 +252,7 @@ class Block(spr.Sprite):
 
         self.mask = pg.mask.from_surface(self.image)
         self.crush_score = 100
+        self.treasure_class = choice([None, None, None, Treasure])
 
     def crush(self):
         self.parent.all_sprites.remove(self)
@@ -260,6 +262,10 @@ class Block(spr.Sprite):
             self.parent.all_sprites.remove(bord)
             self.parent.blocks_group.remove(bord)
         self.parent.score += self.crush_score
+        if self.treasure_class is not None:
+            self.treasure_class(self.parent, self.rect.x, self.rect.y,
+                                self.parent.all_sprites,
+                                self.parent.treasures_group)
 
     def collide_triplex(self, point):
         crush_self = False
@@ -394,6 +400,35 @@ class BlockBorder(spr.Sprite):
         self.rect.topleft = (x, y)
 
         self.mask = pg.mask.from_surface(self.image)
+
+
+class Treasure(spr.Sprite):
+    def __init__(self, parent, x, y, *groups):
+        super().__init__(*groups)
+        self.parent = parent
+        self.image = tr.scale(load_image('Treasure.png', -1),
+                              (self.parent.block_width,
+                               self.parent.block_height))
+        self.rect = self.image.get_rect()
+        self.rect.topleft = (x, y)
+        self.v = 300 / self.parent.FPS
+
+        self.mask = pg.mask.from_surface(self.image)
+
+    def update(self):
+        self.rect.y += self.v
+        if self.rect.y + self.rect.h >= self.parent.death_y:
+            self.delete()
+        if spr.collide_mask(self, self.parent.platform):
+            self.effect()
+            self.delete()
+
+    def delete(self):
+        self.parent.all_sprites.remove(self)
+        self.parent.treasures_group.remove(self)
+
+    def effect(self):
+        self.parent.score += 120
 
 
 class Button:
@@ -540,6 +575,7 @@ class Game:
         self.cursor_group = spr.Group()
         self.borders = spr.Group()
         self.blocks_group = spr.Group()
+        self.treasures_group = spr.Group()
 
         # Открываем модель расположения блоков:
         with open(self.mod_name, encoding='utf8') as model:
@@ -595,7 +631,7 @@ class Game:
                             not self.pause:
                         self.platform_selected = True
                         self.platform.set_select(True, event.pos)
-                if event.type == SECOND:
+                if event.type == SECOND and not self.start:
                     if not self.pause:
                         self.time += TimeDelta(seconds=1)
                 if event.type == pg.KEYDOWN:
@@ -606,7 +642,6 @@ class Game:
                     if event.key == pg.K_HOME and (event.mod & pg.KMOD_CTRL):
                         self.buttons[2].slot()  # Выход
                     if event.key == pg.K_UP:
-                        print('Start!')
                         self.start = False
                 if event.type == pg.MOUSEMOTION:
                     self.cursor.rect.topleft = event.pos
@@ -646,6 +681,8 @@ class Game:
                 self.displays[i].set_item(el)
 
             self.blocks_group.update()
+            if not self.pause:
+                self.treasures_group.update()
             clock.tick(self.FPS)
             pg.display.flip()
             if self.no_blocks():
@@ -735,5 +772,5 @@ class MainWindow:
 
 
 if __name__ == '__main__':
-    window = Game(None, 'DataBases/Level7_StartModel.csv')
+    window = Game(None, 'DataBases/Level5_StartModel.csv')
     window.run()
