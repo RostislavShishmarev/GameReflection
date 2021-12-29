@@ -26,7 +26,7 @@ def load_image(name, color_key=None):
     return image
 
 
-def do_nothing():
+def do_nothing(*args, **kwargs):
     pass
 
 
@@ -314,6 +314,76 @@ class BrickedBlock(Block):
             super().crush()
 
 
+class DeathBlock(Block):
+    def __init__(self, parent, x, y, w, h, i, j, *groups):
+        super().__init__(parent, x, y, w, h, i, j, *groups)
+        self.image = tr.scale(load_image('Death_block.png'),
+                              (self.w, self.h))
+        self.crush_score = 600
+
+
+class ExplodingBlock(Block):
+    def __init__(self, parent, x, y, w, h, i, j, *groups):
+        super().__init__(parent, x, y, w, h, i, j, *groups)
+        self.image = tr.scale(load_image('Exploding_block.png'),
+                              (self.w, self.h))
+        self.cur_index = 0
+        self.frames = [self.image] + self.cut_frames(
+            'Exploding_block_crushing_sprites.png', 6, 8)
+        self.crush_score = 50
+        self.crushing = False
+
+    def crush(self, only_self=False):
+        if not only_self:
+            for coords in self.get_neighbourhood_coords():
+                i, j = coords
+                if isinstance(self.parent.blocks[i][j],
+                              ExplodingBlock):
+                    self.parent.blocks[i][j].crush(only_self=True)
+                else:
+                    self.parent.blocks[i][j].crush()
+        for bord in self.borders:
+            self.parent.all_sprites.remove(bord)
+            self.parent.blocks_group.remove(bord)
+        self.parent.score += self.crush_score
+        self.collide_triplex = do_nothing
+        self.crushing = True
+
+    def update(self):
+        if self.crushing:
+            self.cur_index += 1
+            self.image = self.frames[self.cur_index]
+            if self.cur_index >= len(self.frames) - 1:
+                self.end_crush()
+
+    def end_crush(self):
+        self.parent.all_sprites.remove(self)
+        self.parent.blocks_group.remove(self)
+        self.parent.blocks[self.i][self.j] = None
+
+    def get_neighbourhood_coords(self):
+        blocks, i, j = self.parent.blocks, self.i, self.j
+        coords = []
+        for i, j in [[i + 1, j + 1], [i + 1, j], [i, j + 1], [i - 1, j - 1],
+                     [i - 1, j], [i, j - 1], [i + 1, j - 1], [i - 1, j + 1]]:
+            if 0 <= i < len(blocks) and 0 <= j < len(blocks[0])\
+                    and blocks[i][j] is not None:
+                coords.append((i, j))
+        return coords
+
+    def cut_frames(self, im_name, rows, columns):
+        sheet = load_image(im_name)
+        rect = pg.Rect(0, 0, sheet.get_width() // columns,
+                       sheet.get_height() // rows)
+        frames = []
+        for j in range(rows):
+            for i in range(columns):
+                frame_location = (rect.w * i, rect.h * j)
+                frames.append(tr.scale(sheet.subsurface(pg.Rect(
+                    frame_location, rect.size)), (self.w, self.h)))
+        return frames
+
+
 class BlockBorder(spr.Sprite):
     def __init__(self, parent, x, y, w, h, *groups):
         super().__init__(*groups)
@@ -424,7 +494,9 @@ class Game:
         # Задаём атрибуты:
         self.blocks_dict = {'nothing': None, 'Block.png': Block,
                             'Sc_block.png': ScBlock,
-                            'Bricked_block.png': BrickedBlock}
+                            'Bricked_block.png': BrickedBlock,
+                            'Death_block.png': DeathBlock,
+                            'Exploding_block.png': ExplodingBlock}
         self.block_code_dict = {None: 'nothing', Block: 'Block.png'}
 
         self.parent = parent
@@ -573,6 +645,7 @@ class Game:
                                     self.time.strftime('%M:%S'))):
                 self.displays[i].set_item(el)
 
+            self.blocks_group.update()
             clock.tick(self.FPS)
             pg.display.flip()
             if self.no_blocks():
@@ -662,5 +735,5 @@ class MainWindow:
 
 
 if __name__ == '__main__':
-    window = Game(None, 'DataBases/Level5_StartModel.csv')
+    window = Game(None, 'DataBases/Level7_StartModel.csv')
     window.run()
