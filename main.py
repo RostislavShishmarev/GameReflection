@@ -100,7 +100,6 @@ class Platform(AnimatedSprite):
         name_list = ["Short_platform.png", "Platform.png", "Long_platform.png"]
         index = self.size_index + change
         if index < 0 or index >= len(name_list):
-            print('Дальше изменять некуда.')
             return
         self.size_index += change
         old_x, old_y = self.rect.x, self.rect.y
@@ -259,7 +258,7 @@ class Block(spr.Sprite):
         self.mask = pg.mask.from_surface(self.image)
         self.crush_score = 100
         classes = [None] * 24 + [Treasure] * 16 + [HealthTreasure] +\
-            [LongMakerTreasure] * 6 + [ShortMakerTreasure] * 6
+            [LongMakerTreasure] * 4 + [ShortMakerTreasure] * 4
         self.treasure_class = choice(classes)
 
     def crush(self):
@@ -276,7 +275,7 @@ class Block(spr.Sprite):
                                 self.parent.treasures_group)
 
     def collide_triplex(self, point):
-        crush_self = False
+        self.crush_self = False
         old_x, old_y = point
         old_vx, old_vy = self.parent.triplex.vx, self.parent.triplex.vy
         ver_bord = spr.spritecollideany(self.parent.triplex,
@@ -285,16 +284,19 @@ class Block(spr.Sprite):
                 and ((old_x < self.w / 2 and old_vx >= 0) or
                          (old_x > self.w / 2 and old_vx <= 0)):
             self.parent.triplex.set_vx(-old_vx)
-            crush_self = True
+            self.crush_self = True
         hor_bord = spr.spritecollideany(self.parent.triplex,
                                         self.hor_bord_group)
         if hor_bord and spr.collide_mask(self.parent.triplex, hor_bord)\
                 and ((old_y < self.h / 2 and old_vy >= 0) or
                          (old_y > self.h / 2 and old_vy <= 0)):
             self.parent.triplex.set_vy(-old_vy)
-            crush_self = True
-        if crush_self:
+            self.crush_self = True
+        if self.crush_self:
             self.crush()
+        if not self.crush_self and not isinstance(self, ScBlock):
+            self.parent.triplex.set_vx(-old_vx)
+            self.parent.triplex.set_vy(-old_vy)
 
 
 class ScBlock(Block):
@@ -834,5 +836,5 @@ class MainWindow:
 
 
 if __name__ == '__main__':
-    window = Game(None, 'DataBases/Level8_StartModel.csv')
+    window = Game(None, 'DataBases/Level10_StartModel.csv')
     window.run()
