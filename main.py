@@ -69,6 +69,7 @@ class Platform(AnimatedSprite):
         self.selected_delta_x = 0
         self.set_dict()
 
+        self.size_index = 1
         self.edge = 30
         self.crushing = False
         self.crushing_cadres = self.cur_cadres = round(1 / 3 * self.parent.FPS)
@@ -95,14 +96,15 @@ class Platform(AnimatedSprite):
                 self.cur_cadres = self.crushing_cadres
                 self.parent.end_die()
 
-    def set_platform_size(self, size='middle'):
-        name = {'short': "Short_platform.png", 'long': "Long_platform.png",
-                'middle': "Platform.png"}.get(size, None)
-        if name is None:
-            print('Некорректный размер.')
+    def change_platform_size(self, change=0):
+        name_list = ["Short_platform.png", "Platform.png", "Long_platform.png"]
+        index = self.size_index + change
+        if index < 0 or index >= len(name_list):
+            print('Дальше изменять некуда.')
             return
+        self.size_index += change
         old_x, old_y = self.rect.x, self.rect.y
-        self.names = [(name, -1)] + self.names[1:]
+        self.names = [(name_list[self.size_index], -1)] + self.names[1:]
         self.make_frames(self.names, h=self.h)
         self.rect.x = old_x
         self.rect.y = old_y
@@ -114,11 +116,11 @@ class Platform(AnimatedSprite):
         pos = (self.rect.x, self.rect.y) if pos is None else pos
         self.selected_delta_x = pos[0] - self.rect.x if select else 0
 
-    def set_dict(self):
+    def set_dict(self, coef=5):
         self.angles_dict = {}
         fps = self.parent.FPS
-        vx, vy = -500 / fps, -50 / fps
-        step = 50 / fps
+        vx, vy = coef * -100 / fps, coef * -10 / fps
+        step = coef * 10 / fps
         for i in range(0, 9):
             self.angles_dict[range(self.w // 20 * i,
                                    self.w // 20 * (i + 1))] = (vx, vy)
@@ -215,6 +217,10 @@ class Triplex(spr.Sprite):
     def set_vy(self, vy):
         self.vy = vy
 
+    def change_v(self, coef):
+        self.vx *= coef
+        self.vy *= coef
+
 
 class Border(spr.Sprite):
     def __init__(self, parent, groups, x, y, w, h, degree):
@@ -252,7 +258,9 @@ class Block(spr.Sprite):
 
         self.mask = pg.mask.from_surface(self.image)
         self.crush_score = 100
-        self.treasure_class = choice([None, None, None, Treasure])
+        classes = [None] * 24 + [Treasure] * 16 + [HealthTreasure] +\
+            [LongMakerTreasure] * 6 + [ShortMakerTreasure] * 6
+        self.treasure_class = choice(classes)
 
     def crush(self):
         self.parent.all_sprites.remove(self)
@@ -294,6 +302,7 @@ class ScBlock(Block):
         super().__init__(parent, x, y, w, h, i, j, *groups)
         self.image = tr.scale(load_image('Sc_block.png'), (self.w, self.h))
         self.before_crushing = 30
+        self.treasure_class = None
         self.crush_score = 400
 
     def crush(self):
@@ -326,6 +335,7 @@ class DeathBlock(Block):
         self.image = tr.scale(load_image('Death_block.png'),
                               (self.w, self.h))
         self.crush_score = 600
+        self.treasure_class = DeathTreasure
 
 
 class ExplodingBlock(Block):
@@ -343,6 +353,9 @@ class ExplodingBlock(Block):
         if not only_self:
             for coords in self.get_neighbourhood_coords():
                 i, j = coords
+                if not isinstance(self.parent.blocks[i][j], DeathBlock):
+                    self.parent.blocks[i][j].treasure_class =\
+                        self.treasure_class
                 if isinstance(self.parent.blocks[i][j],
                               ExplodingBlock):
                     self.parent.blocks[i][j].crush(only_self=True)
@@ -429,6 +442,55 @@ class Treasure(spr.Sprite):
 
     def effect(self):
         self.parent.score += 120
+
+
+class DeathTreasure(Treasure):
+    def __init__(self, parent, x, y, *groups):
+        super().__init__(parent, x, y, *groups)
+        self.image = tr.scale(load_image('Death_block.png'),
+                              (self.parent.block_width,
+                               self.parent.block_height))
+        self.mask = pg.mask.from_surface(self.image)
+        self.v = 400 / self.parent.FPS
+
+    def effect(self):
+        self.parent.begin_die()
+
+
+class HealthTreasure(Treasure):
+    def __init__(self, parent, x, y, *groups):
+        super().__init__(parent, x, y, *groups)
+        self.image = tr.scale(load_image('Health_treasure.png', -1),
+                              (self.parent.block_width,
+                               self.parent.block_height))
+        self.mask = pg.mask.from_surface(self.image)
+
+    def effect(self):
+        self.parent.lifes += 1
+
+
+class LongMakerTreasure(Treasure):
+    def __init__(self, parent, x, y, *groups):
+        super().__init__(parent, x, y, *groups)
+        self.image = tr.scale(load_image('Long_maker.png', -1),
+                              (self.parent.block_width,
+                               self.parent.block_height))
+        self.mask = pg.mask.from_surface(self.image)
+
+    def effect(self):
+        self.parent.platform.change_platform_size(1)
+
+
+class ShortMakerTreasure(Treasure):
+    def __init__(self, parent, x, y, *groups):
+        super().__init__(parent, x, y, *groups)
+        self.image = tr.scale(load_image('Short_maker.png', -1),
+                              (self.parent.block_width,
+                               self.parent.block_height))
+        self.mask = pg.mask.from_surface(self.image)
+
+    def effect(self):
+        self.parent.platform.change_platform_size(-1)
 
 
 class Button:
@@ -772,5 +834,5 @@ class MainWindow:
 
 
 if __name__ == '__main__':
-    window = Game(None, 'DataBases/Level5_StartModel.csv')
+    window = Game(None, 'DataBases/Level8_StartModel.csv')
     window.run()
