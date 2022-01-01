@@ -2,6 +2,7 @@ import pygame as pg
 import pygame.draw as dr
 import pygame.transform as tr
 import pygame.sprite as spr
+import pygame.mixer as mix
 import csv
 import os
 from datetime import datetime as DateTime
@@ -105,10 +106,12 @@ class Platform(AnimatedSprite):
         old_x, old_y = self.rect.x, self.rect.y
         self.names = [(name_list[self.size_index], -1)] + self.names[1:]
         self.make_frames(self.names, h=self.h)
-        self.rect.x = old_x
+        self.rect.x = min(old_x,
+                          self.parent.w - self.rect.w - self.parent.border_w)
         self.rect.y = old_y
         self.mask = pg.mask.from_surface(self.image)
         self.set_dict()
+        self.parent.platform_changed_sound.play()
 
     def set_select(self, select, pos=None):
         # Задание точки перетаскивания относительно левого края
@@ -143,10 +146,14 @@ class Platform(AnimatedSprite):
 
     def collide_triplex(self, point):
         x = point[0]
+        from_start = self.parent.triplex.vx == self.parent.triplex.vy == 0
         for range_ in self.angles_dict.keys():
             if x in range_:
                 self.parent.triplex.set_vx(self.angles_dict[range_][0])
                 self.parent.triplex.set_vy(self.angles_dict[range_][1])
+                if not from_start:
+                    self.parent.collide_sound.play()
+                break
 
 
 class Triplex(spr.Sprite):
@@ -163,6 +170,7 @@ class Triplex(spr.Sprite):
         self.vx = self.vy = 0
 
         self.mask = pg.mask.from_surface(self.image)
+        self.died = False
 
     def update(self, delta_x=0):
         # Движение по платформе:
@@ -178,17 +186,15 @@ class Triplex(spr.Sprite):
         old_x, old_y = self.rect.x, self.rect.y
         self.rect.x += self.vx
         self.rect.y += self.vy
-        if self.rect.y + self.h >= self.parent.death_y:
+        if self.rect.y + self.h >= self.parent.death_y and not self.died:
+            self.died = True
             self.parent.begin_die()
             return
 
         # Отскоки от стенок:
         border = spr.spritecollideany(self, self.parent.borders)
         if border is not None:
-            if border.location == 'ver':
-                self.vx = -self.vx
-            else:
-                self.vy = -self.vy
+            border.collide_triplex()
 
         # Отскоки от платформы:
         point = spr.collide_mask(self.parent.platform, self)
@@ -196,19 +202,25 @@ class Triplex(spr.Sprite):
             self.parent.platform.collide_triplex(point)
 
         # Отскоки от блоков:
-        block = spr.spritecollideany(self, self.parent.blocks_group)
-        if block is not None:
-            point = spr.collide_mask(block, self)
-            if point is not None:
-                block.collide_triplex(point)
+        blocks = spr.spritecollide(self, self.parent.blocks_group, False)
+        for block in blocks:
+            if block is not None:
+                point = spr.collide_mask(block, self)
+                if point is not None:
+                    block.collide_triplex(point)
 
         # Защита от выталкивания за пределы поля:
         if self.rect.y < self.parent.blocks_top:
-            self.rect.y = old_y - 1
+            self.rect.y = old_y + 1
         if self.rect.x < self.parent.border_w:
             self.rect.x = old_x + 1
         if self.rect.x + self.w > self.parent.w - self.parent.border_w:
             self.rect.x = old_x - 1
+
+        # Защита от горизонтальных отскоков:
+        if self.vy == 0 and self.vx != 0:
+            self.vy += 2
+            print('Исправлено.')
 
     def set_vx(self, vx):
         self.vx = vx
@@ -234,6 +246,13 @@ class Border(spr.Sprite):
         self.rect.y = y
         self.location = 'hor' if self.w > self.h else 'ver'
 
+    def collide_triplex(self):
+        if self.location == 'ver':
+            self.parent.triplex.vx = -self.parent.triplex.vx
+        else:
+            self.parent.triplex.vy = -self.parent.triplex.vy
+        self.parent.collide_sound.play()
+
 
 class Block(spr.Sprite):
     def __init__(self, parent, x, y, w, h, i, j, *groups):
@@ -247,19 +266,24 @@ class Block(spr.Sprite):
         self.ver_bord_group = spr.Group()
         self.hor_bord_group = spr.Group()
         self.borders = [BlockBorder(self, x, y, 1, self.h,
-                                        *list(groups) + [self.ver_bord_group]),
+                                        [self.parent.all_sprites,
+                                         self.ver_bord_group]),
                         BlockBorder(self, x + self.w - 1, y, 1, self.h,
-                                        *list(groups) + [self.ver_bord_group]),
+                                        [self.parent.all_sprites,
+                                         self.ver_bord_group]),
                         BlockBorder(self, x + 1, y, self.w - 2, 1,
-                                        *list(groups) + [self.hor_bord_group]),
+                                        [self.parent.all_sprites,
+                                         self.hor_bord_group]),
                         BlockBorder(self, x + 1, y + self.h - 1, self.w - 2, 1,
-                                        *list(groups) + [self.hor_bord_group])]
+                                        [self.parent.all_sprites,
+                                         self.hor_bord_group])]
 
         self.mask = pg.mask.from_surface(self.image)
         self.crush_score = 100
         classes = [None] * 24 + [Treasure] * 16 + [HealthTreasure] +\
             [LongMakerTreasure] * 4 + [ShortMakerTreasure] * 4
         self.treasure_class = choice(classes)
+        self.collide_sound = self.parent.collide_sound
 
     def crush(self):
         self.parent.all_sprites.remove(self)
@@ -267,7 +291,6 @@ class Block(spr.Sprite):
         self.parent.blocks[self.i][self.j] = None
         for bord in self.borders:
             self.parent.all_sprites.remove(bord)
-            self.parent.blocks_group.remove(bord)
         self.parent.score += self.crush_score
         if self.treasure_class is not None:
             self.treasure_class(self.parent, self.rect.x, self.rect.y,
@@ -294,9 +317,12 @@ class Block(spr.Sprite):
             self.crush_self = True
         if self.crush_self:
             self.crush()
+            self.collide_sound.play()
         if not self.crush_self and not isinstance(self, ScBlock):
             self.parent.triplex.set_vx(-old_vx)
             self.parent.triplex.set_vy(-old_vy)
+            self.crush()
+            self.collide_sound.play()
 
 
 class ScBlock(Block):
@@ -338,6 +364,7 @@ class DeathBlock(Block):
                               (self.w, self.h))
         self.crush_score = 600
         self.treasure_class = DeathTreasure
+        self.collide_sound = self.parent.death_collide_sound
 
 
 class ExplodingBlock(Block):
@@ -350,6 +377,7 @@ class ExplodingBlock(Block):
             'Exploding_block_crushing_sprites.png', 6, 8)
         self.crush_score = 50
         self.crushing = False
+        self.collide_sound = self.parent.crush_sound
 
     def crush(self, only_self=False):
         if not only_self:
@@ -365,10 +393,13 @@ class ExplodingBlock(Block):
                     self.parent.blocks[i][j].crush()
         for bord in self.borders:
             self.parent.all_sprites.remove(bord)
-            self.parent.blocks_group.remove(bord)
         self.parent.score += self.crush_score
         self.collide_triplex = do_nothing
         self.crushing = True
+        if self.treasure_class is not None:
+            self.treasure_class(self.parent, self.rect.x, self.rect.y,
+                                self.parent.all_sprites,
+                                self.parent.treasures_group)
 
     def update(self):
         if self.crushing:
@@ -444,6 +475,7 @@ class Treasure(spr.Sprite):
 
     def effect(self):
         self.parent.score += 120
+        self.parent.treasure_sound.play()
 
 
 class DeathTreasure(Treasure):
@@ -469,6 +501,7 @@ class HealthTreasure(Treasure):
 
     def effect(self):
         self.parent.lifes += 1
+        self.parent.life_added_sound.play()
 
 
 class LongMakerTreasure(Treasure):
@@ -490,6 +523,7 @@ class ShortMakerTreasure(Treasure):
                               (self.parent.block_width,
                                self.parent.block_height))
         self.mask = pg.mask.from_surface(self.image)
+        self.sound = self.parent.platform_changed_sound
 
     def effect(self):
         self.parent.platform.change_platform_size(-1)
@@ -620,6 +654,7 @@ class Game:
         self.start = True
         self.platform_selected = False
         self.new_window_after_self = None
+        self.game_ended = False
 
         # Создаём виджеты:
         self.buttons = [Button(self, 20, self.h - 60, 350, 50,
@@ -647,6 +682,7 @@ class Game:
 
     def run(self):
         pg.init()
+        mix.init()
         # Местные переменные и константы:
         clock = pg.time.Clock()
         SECOND = pg.USEREVENT + 1
@@ -660,6 +696,17 @@ class Game:
         pg.time.set_timer(SECOND, 1000)
         pg.mouse.set_visible(False)
         pg.display.set_icon(load_image('Reflection_logo.png'))
+
+        # Создаём звуки:
+        self.collide_sound = mix.Sound('Sounds/collide.mp3')
+        self.win_sound = mix.Sound('Sounds/win.mp3')
+        self.game_over_sound = mix.Sound('Sounds/game_over.mp3')
+        self.crush_sound = mix.Sound('Sounds/crush.mp3')
+        self.death_collide_sound = mix.Sound('Sounds/death_collide.mp3')
+        self.life_added_sound = mix.Sound('Sounds/life_added.mp3')
+        self.platform_changed_sound = mix.Sound('Sounds/platform_changed.mp3')
+        self.treasure_sound = mix.Sound('Sounds/treasure_on_platform.mp3')
+        self.platform_crushed_sound = mix.Sound('Sounds/platform_crushing.mp3')
 
         # Создаём спрайты:
         self.platform = Platform(self, self.all_sprites)
@@ -744,14 +791,15 @@ class Game:
                                     self.time.strftime('%M:%S'))):
                 self.displays[i].set_item(el)
 
-            self.blocks_group.update()
             if not self.pause:
+                self.blocks_group.update()
                 self.treasures_group.update()
             clock.tick(self.FPS)
             pg.display.flip()
-            if self.no_blocks():
+            if self.no_blocks() and not self.game_ended:
                 self.win()
         pg.quit()
+        mix.quit()
         if self.new_window_after_self is not None:
             self.new_window_after_self.run()
 
@@ -777,6 +825,10 @@ class Game:
 
     def change_pause(self):
         self.pause = not self.pause
+        if self.pause:
+            mix.pause()
+        else:
+            mix.unpause()
 
     def exit(self):
         self.running = False
@@ -787,6 +839,7 @@ class Game:
     def begin_die(self):
         self.all_sprites.remove(self.triplex)
         self.platform.crushing = True
+        self.platform_crushed_sound.play()
 
     def end_die(self):
         self.all_sprites.remove(self.platform)
@@ -804,6 +857,8 @@ class Game:
             g_over.rect = g_over.image.get_rect()
             g_over.rect.topleft = (self.w // 2 - g_over.rect[2] // 2,
                                    self.h // 2 - g_over.rect[3] // 2)
+            self.game_over_sound.play()
+            self.game_ended = True
         else:
             self.platform = Platform(self, self.all_sprites)
             self.triplex = Triplex(self, self.all_sprites)
@@ -819,6 +874,8 @@ class Game:
         you_win.rect = you_win.image.get_rect()
         you_win.rect.topleft = (self.w // 2 - you_win.rect[2] // 2,
                                 self.h // 2 - you_win.rect[3] // 2)
+        self.win_sound.play()
+        self.game_ended = True
 
     def restart(self):
         self.exit()
@@ -836,5 +893,5 @@ class MainWindow:
 
 
 if __name__ == '__main__':
-    window = Game(None, 'DataBases/Level10_StartModel.csv')
+    window = Game(None, 'DataBases/Level9_StartModel.csv')
     window.run()
