@@ -74,20 +74,11 @@ class Platform(AnimatedSprite):
         self.edge = 30
         self.crushing = False
         self.crushing_cadres = self.cur_cadres = round(1 / 3 * self.parent.FPS)
+        self.selected = False
 
         self.mask = pg.mask.from_surface(self.image)
 
-    def update(self, delta_x=0):
-        if delta_x:
-            x = self.rect.x + delta_x - self.selected_delta_x
-            if x < self.parent.border_w:
-                x = self.parent.border_w
-            if x > self.parent.w - self.w - self.parent.border_w:
-                x = self.parent.w - self.w - self.parent.border_w
-            delta_x = x - self.rect.x
-            self.rect.x = x
-            if self.parent.start:
-                self.parent.triplex.update(delta_x=delta_x)
+    def update(self):
         if self.crushing:
             self.cur_cadres -= 1
             if self.cur_cadres in [self.crushing_cadres // len(self.names) * i
@@ -96,6 +87,17 @@ class Platform(AnimatedSprite):
             if self.cur_cadres <= 0:
                 self.cur_cadres = self.crushing_cadres
                 self.parent.end_die()
+
+    def move(self, delta_x):
+        x = self.rect.x + delta_x - self.selected_delta_x
+        if x < self.parent.border_w:
+            x = self.parent.border_w
+        if x > self.parent.w - self.w - self.parent.border_w:
+            x = self.parent.w - self.w - self.parent.border_w
+        delta_x = x - self.rect.x
+        self.rect.x = x
+        if self.parent.start:
+            self.parent.triplex.move(delta_x)
 
     def change_platform_size(self, change=0):
         name_list = ["Short_platform.png", "Platform.png", "Long_platform.png"]
@@ -115,6 +117,7 @@ class Platform(AnimatedSprite):
 
     def set_select(self, select, pos=None):
         # Задание точки перетаскивания относительно левого края
+        self.selected = select
         pos = (self.rect.x, self.rect.y) if pos is None else pos
         self.selected_delta_x = pos[0] - self.rect.x if select else 0
 
@@ -155,6 +158,23 @@ class Platform(AnimatedSprite):
                     self.parent.collide_sound.play()
                 break
 
+    def process_move(self):
+        if not pg.key.get_mods() & pg.KMOD_SHIFT:
+            if pg.key.get_pressed()[pg.K_RIGHT] and not self.parent.pause:
+                self.move(10)
+            if pg.key.get_pressed()[pg.K_LEFT] and not self.parent.pause:
+                self.move(-10)
+
+    def process_event(self, event):
+        if event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
+            if self.rect.collidepoint(event.pos) and not self.parent.pause:
+                self.set_select(True, event.pos)
+        if event.type == pg.MOUSEMOTION:
+            if self.selected and not self.parent.pause:
+                self.move(event.pos[0] - self.rect.x)
+        if event.type == pg.MOUSEBUTTONUP:
+            self.set_select(False)
+
 
 class Triplex(spr.Sprite):
     def __init__(self, parent, group):
@@ -172,16 +192,7 @@ class Triplex(spr.Sprite):
         self.mask = pg.mask.from_surface(self.image)
         self.died = False
 
-    def update(self, delta_x=0):
-        # Движение по платформе:
-        if delta_x:
-            x = self.rect.x + delta_x
-            ed = self.parent.platform.edge
-            min_x = self.parent.platform.rect.x
-            min_x += self.parent.platform.rect.w - self.w - ed
-            self.rect.x = x if self.parent.platform.rect.x + ed <= x <= min_x\
-                else self.rect.x
-
+    def update(self):
         # Движение:
         old_x, old_y = self.rect.x, self.rect.y
         self.rect.x += self.vx
@@ -222,6 +233,14 @@ class Triplex(spr.Sprite):
             self.vy += 2
             print('Исправлено.')
 
+    def move(self, delta_x):
+        x = self.rect.x + delta_x
+        ed = self.parent.platform.edge
+        min_x = self.parent.platform.rect.x
+        min_x += self.parent.platform.rect.w - self.w - ed
+        self.rect.x = x if self.parent.platform.rect.x + ed <= x <= min_x\
+            else self.rect.x
+
     def set_vx(self, vx):
         self.vx = vx
 
@@ -231,6 +250,13 @@ class Triplex(spr.Sprite):
     def change_v(self, coef):
         self.vx *= coef
         self.vy *= coef
+
+    def process_move(self):
+        if pg.key.get_mods() & pg.KMOD_SHIFT and not self.parent.pause:
+            if pg.key.get_pressed()[pg.K_LEFT]:
+                self.move(-5)
+            if pg.key.get_pressed()[pg.K_RIGHT]:
+                self.move(5)
 
 
 class Border(spr.Sprite):
@@ -532,28 +558,32 @@ class ShortMakerTreasure(Treasure):
 class Button:
     def __init__(self, parent, x, y, w, h, text, font_size=40,
                  main_color=pg.Color(70, 202, 232),
-                 back_color=pg.Color(0, 0, 0), slot=do_nothing, text2=None):
+                 back_color=pg.Color(0, 0, 0), slot=do_nothing, text2=None,
+                 key=None, modifier=None):
         self.parent = parent
         self.x, self.y, self.x1, self.y1 = x, y, x + w, y + h
         self.w, self.h = w, h
+        self.function = slot
+
         self.text = text
         self.text2 = text2 if text2 is not None else text
         self.current_text = self.text
         self.font_size = font_size
+
         self.main_color = main_color
-        self.light_main_color = main_color
+        self.light_main_color = pg.Color(min(self.main_color.r + 90, 255),
+                                         min(self.main_color.g + 90, 255),
+                                         min(self.main_color.b + 90, 255))
+        self.current_color = self.main_color
         self.back_color = back_color
-        self.num_of_change = 0  # Количество отображений до конца подсветки
-        self.function = slot
+
+        self.key = key
+        self.modifier = modifier
 
     def slot(self):
         # Декорация переданной функции:
         self.current_text = self.text if self.current_text == self.text2\
             else self.text2
-        self.light_main_color = pg.Color(min(self.main_color.r + 90, 255),
-                                         min(self.main_color.g + 90, 255),
-                                         min(self.main_color.b + 90, 255))
-        self.num_of_change = 10
 
         self.function()
 
@@ -561,21 +591,33 @@ class Button:
         screen = self.parent.screen
         dr.rect(screen, self.back_color,
                 (self.x, self.y, self.w, self.h))
-        dr.rect(screen, self.light_main_color,
+        dr.rect(screen, self.current_color,
                 (self.x, self.y, self.w, self.h), width=2)
         font = pg.font.Font(None, self.font_size)
-        text = font.render(self.current_text, True, self.light_main_color)
+        text = font.render(self.current_text, True, self.current_color)
         screen.blit(text, (self.x + self.w // 2 - text.get_width() // 2,
                            self.y + self.h // 2 - text.get_height() // 2))
-        # Регулировка подсветки:
-        if self.num_of_change == 0:
-            self.light_main_color = self.main_color
-        else:
-            self.num_of_change -= 1
 
     def __contains__(self, item):
         return item[0] in range(self.x, self.x1) and\
                item[1] in range(self.y, self.y1)
+
+    def process_event(self, event):
+        if event.type == pg.MOUSEBUTTONDOWN:
+            if event.pos in self:
+                self.slot()
+        if event.type == pg.KEYDOWN and self.key is not None:
+            if event.key == self.key:
+                if self.modifier is not None:
+                    if event.mod & self.modifier:
+                        self.slot()
+                else:
+                    self.slot()
+        if event.type == pg.MOUSEMOTION:
+            if event.pos in self:
+                self.current_color = self.light_main_color
+            else:
+                self.current_color = self.main_color
 
 
 class TextDisplay:
@@ -658,12 +700,14 @@ class Game:
 
         # Создаём виджеты:
         self.buttons = [Button(self, 20, self.h - 60, 350, 50,
-                               'Сохранить', slot=self.save),
+                               'Сохранить', slot=self.save,
+                               key=pg.K_s, modifier=pg.KMOD_CTRL),
                         Button(self, self.w // 2 - 175, self.h - 60, 350, 50,
                                'Пауза', slot=self.change_pause,
-                               text2='Продолжить'),
+                               text2='Продолжить', key=pg.K_SPACE),
                         Button(self, self.w - 370, self.h - 60, 350, 50,
-                               'Выход', slot=self.exit)]
+                               'Выход', slot=self.exit,
+                               key=pg.K_HOME, modifier=pg.KMOD_CTRL)]
         self.displays = [TextDisplay(self, 20, 10, 300, 100,
                                      'Очки', str(self.score)),
                          TextDisplay(self, self.w // 2 - 150, 10, 300, 100,
@@ -732,46 +776,25 @@ class Game:
         while self.running:
             # Обработка событий:
             for event in pg.event.get():
+                for but in self.buttons:
+                    but.process_event(event)
+                self.platform.process_event(event)
                 if event.type == pg.QUIT:
                     self.running = False
-                if event.type == pg.MOUSEBUTTONDOWN:
-                    for but in self.buttons:
-                        if event.pos in but:
-                            but.slot()
-                    if self.platform.rect.collidepoint(event.pos) and\
-                            not self.pause:
-                        self.platform_selected = True
-                        self.platform.set_select(True, event.pos)
                 if event.type == SECOND and not self.start:
                     if not self.pause:
                         self.time += TimeDelta(seconds=1)
                 if event.type == pg.KEYDOWN:
-                    if event.key == pg.K_SPACE:
-                        self.buttons[1].slot()  # Пауза
-                    if event.key == pg.K_s and (event.mod & pg.KMOD_CTRL):
-                        self.buttons[0].slot()  # Сохранить
-                    if event.key == pg.K_HOME and (event.mod & pg.KMOD_CTRL):
-                        self.buttons[2].slot()  # Выход
                     if event.key == pg.K_UP:
+                        self.start = False
+                if event.type == pg.MOUSEBUTTONDOWN:
+                    if event.button == 2:
                         self.start = False
                 if event.type == pg.MOUSEMOTION:
                     self.cursor.rect.topleft = event.pos
-                    if self.platform_selected and not self.pause:
-                        self.platform.update(event.pos[0] -
-                                             self.platform.rect.x)
-                if event.type == pg.MOUSEBUTTONUP:
-                    self.platform_selected = False
-                    self.platform.set_select(False)
-            if pg.key.get_pressed()[pg.K_LEFT] and not self.pause:
-                if not pg.key.get_mods() & pg.KMOD_SHIFT:
-                    self.platform.update(-10)
-                else:
-                    self.triplex.update(delta_x=-5)
-            if pg.key.get_pressed()[pg.K_RIGHT] and not self.pause:
-                if not pg.key.get_mods() & pg.KMOD_SHIFT:
-                    self.platform.update(10)
-                else:
-                    self.triplex.update(delta_x=5)
+            self.platform.process_move()
+            if self.start:
+                self.triplex.process_move()
 
             # Отрисовка элементов:
             self.screen.blit(fone, (0, 0))
@@ -786,16 +809,17 @@ class Game:
                 self.triplex.update()
                 self.platform.update()
 
-            # Обновление элементов дисплеев:
+            # Обновление элементов:
             for i, el in enumerate((str(self.score), str(self.lifes),
                                     self.time.strftime('%M:%S'))):
                 self.displays[i].set_item(el)
-
             if not self.pause:
                 self.blocks_group.update()
                 self.treasures_group.update()
             clock.tick(self.FPS)
             pg.display.flip()
+
+            # Проверка на выигрыш:
             if self.no_blocks() and not self.game_ended:
                 self.win()
         pg.quit()
