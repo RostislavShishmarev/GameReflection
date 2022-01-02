@@ -3,21 +3,16 @@ import pygame.transform as tr
 import pygame.sprite as spr
 
 from functions import load_image, do_nothing, get_width
-from widgets import TabWidget, TextDisplay
+from widgets import TabWidget, TextDisplay, Image
 
 
 class InfoWindow:
     def __init__(self):
         # Задаём атрибуты:
         self.FPS = 60
-        self.size = (self.w, self.h) = (1210, 820)
-        self.blocks_left = 20
-        self.blocks_top = 140
-        self.field_bottom = 730
-        self.block_width = 90
-        self.block_height = 50
-        self.death_y = 710
-        self.border_w = 20
+        self.size = (self.w, self.h) = (1400, 800)
+        self.indent = 15
+        self.up_indent = 60
 
         self.cursor_group = spr.Group()
 
@@ -45,7 +40,19 @@ class InfoWindow:
         self.cursor.rect = self.cursor.image.get_rect()
 
         # Создаём виджеты:
-        self.tab_widget = TabWidget(self, (10, 10, self.w - 20, self.h - 20),
+        self.buttons = [Image(self, (self.w - self.indent - self.up_indent,
+                                     self.indent,
+                                     self.up_indent, self.up_indent),
+                              load_image('Exit.png'),
+                              slot=self.exit,
+                              light_image=load_image('Exit_light.png'),
+                              bord_color=pg.Color(70, 202, 232),
+                              key=pg.K_HOME, modifier=pg.KMOD_CTRL)]
+        self.tab_widget = TabWidget(self, (self.indent,
+                                           self.indent * 2 + self.up_indent,
+                                           self.w - self.indent * 2,
+                                           self.h - self.indent * 3 -\
+                                           self.up_indent),
                                     ['Основные правила', 'Блоки', 'Сокровища'])
         self.tab_widget.set_widgets(0, [TextDisplay(self, (50, 50, 400, 100),
                                                     'qwerty', 'boom!')])
@@ -55,6 +62,8 @@ class InfoWindow:
             # Обработка событий:
             for event in pg.event.get():
                 self.tab_widget.process_event(event)
+                for but in self.buttons:
+                    but.process_event(event)
                 if event.type == pg.QUIT:
                     self.running = False
                 if event.type == pg.MOUSEMOTION:
@@ -63,6 +72,8 @@ class InfoWindow:
             # Отрисовка элементов:
             self.screen.blit(fone, (0, 0))
             self.tab_widget.render()
+            for but in self.buttons:
+                but.render()
             if pg.mouse.get_focused():
                 self.cursor_group.draw(self.screen)
 

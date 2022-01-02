@@ -1,7 +1,7 @@
 import pygame as pg
 import pygame.draw as dr
 import pygame.transform as tr
-from functions import do_nothing, load_image
+from functions import do_nothing, get_width
 
 
 class BaseWidget:
@@ -121,9 +121,6 @@ class TextDisplay(BaseWidget):
     def set_item(self, item):
         self.item = item
 
-    def process_event(self, event):
-        pass
-
 
 class TabWidget(BaseWidget):
     def __init__(self, parent, rect, titles, titles_h=40,
@@ -181,7 +178,7 @@ class TabWidget(BaseWidget):
                                                        self.y + self.titles_h -\
                                                        self.rects_w // 2))
 
-    def process_event(self, event):
+    def process_event(self, event, *args, **kwargs):
         for i, title in enumerate(self.titles_names):
             self.widgets[i][1].process_event(event, i)
             for widget in self.widgets[i][0]:
@@ -198,3 +195,54 @@ class TabWidget(BaseWidget):
 
     def add_widget(self, index, widget):
         self.widgets[index][0].append(widget)
+
+
+class Image(BaseWidget):
+    def __init__(self, parent, rect, image, proportional=False,
+                 bord_color=None, light_image=None,
+                 key=None, modifier=None, slot=do_nothing):
+        super().__init__(parent, rect)
+        if proportional:
+            self.w = get_width(image, self.h)
+
+        self.image = self.current_image = tr.scale(image, (self.w, self.h))
+        self.light_image = light_image if light_image is None\
+            else tr.scale(light_image, (self.w, self.h))
+
+        self.key = key
+        self.modifier = modifier
+        self.slot = slot
+
+        self.main_color = bord_color
+        self.light_main_color = pg.Color(min(self.main_color.r + 90, 255),
+                                         min(self.main_color.g + 90, 255),
+                                         min(self.main_color.b + 90, 255))\
+            if self.main_color is not None else None
+        self.current_color = self.main_color
+        self.border_w = 2
+
+    def render(self, screen=None):
+        screen = screen if screen is not None else self.parent.screen
+        pg.Surface.blit(screen, self.current_image, (self.x, self.y))
+        if self.current_color is not None:
+            dr.rect(screen, self.current_color,
+                    (self.x, self.y, self.w, self.h), width=self.border_w)
+
+    def process_event(self, event, *args, **kwargs):
+        if event.type == pg.MOUSEBUTTONDOWN:
+            if event.pos in self:
+                self.slot(*args, **kwargs)
+        if event.type == pg.KEYDOWN and self.key is not None:
+            if event.key == self.key:
+                if self.modifier is not None:
+                    if event.mod & self.modifier:
+                        self.slot(*args, **kwargs)
+                else:
+                    self.slot(*args, **kwargs)
+        if event.type == pg.MOUSEMOTION and self.light_image is not None:
+            if event.pos in self:
+                self.current_image = self.light_image
+                self.current_color = self.light_main_color
+            else:
+                self.current_image = self.image
+                self.current_color = self.main_color
