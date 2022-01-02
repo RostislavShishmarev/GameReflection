@@ -3,6 +3,7 @@ import pygame.transform as tr
 import pygame.sprite as spr
 
 from functions import load_image, do_nothing, get_width
+from widgets import TabWidget, TextDisplay
 
 
 class InfoWindow:
@@ -43,10 +44,17 @@ class InfoWindow:
         self.cursor.image = load_image("cursor.png")
         self.cursor.rect = self.cursor.image.get_rect()
 
+        # Создаём виджеты:
+        self.tab_widget = TabWidget(self, (10, 10, self.w - 20, self.h - 20),
+                                    ['Основные правила', 'Блоки', 'Сокровища'])
+        self.tab_widget.set_widgets(0, [TextDisplay(self, (50, 50, 400, 100),
+                                                    'qwerty', 'boom!')])
+
         # Основной цикл игры:
         while self.running:
             # Обработка событий:
             for event in pg.event.get():
+                self.tab_widget.process_event(event)
                 if event.type == pg.QUIT:
                     self.running = False
                 if event.type == pg.MOUSEMOTION:
@@ -54,6 +62,7 @@ class InfoWindow:
 
             # Отрисовка элементов:
             self.screen.blit(fone, (0, 0))
+            self.tab_widget.render()
             if pg.mouse.get_focused():
                 self.cursor_group.draw(self.screen)
 
