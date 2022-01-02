@@ -198,7 +198,7 @@ class Triplex(spr.Sprite):
 
         # Защита от горизонтальных отскоков:
         if (self.vy > -1 and self.vy < 1) and self.vx != 0:
-            self.vy += 1
+            self.vy += 1 if self.vy > 0 else -1
 
     def move(self, delta_x):
         x = self.rect.x + delta_x
