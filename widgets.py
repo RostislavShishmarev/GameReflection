@@ -1,7 +1,7 @@
 import pygame as pg
 import pygame.draw as dr
 import pygame.transform as tr
-from functions import do_nothing, get_width
+from functions import do_nothing, get_width, load_image
 
 
 class BaseWidget:
@@ -20,6 +20,12 @@ class BaseWidget:
 
     def process_event(self, event, *args, **kwargs):
         pass
+
+
+class HorAlign:
+    LEFT = 'left'
+    RIGHT = 'right'
+    CENTER = 'center'
 
 
 class Button(BaseWidget):
@@ -41,6 +47,7 @@ class Button(BaseWidget):
                                          min(self.main_color.b + 90, 255))
         self.current_color = self.main_color
         self.back_color = back_color
+        self.border_w = 2
 
         self.key = key
         self.modifier = modifier
@@ -57,7 +64,7 @@ class Button(BaseWidget):
         dr.rect(screen, self.back_color,
                 (self.x, self.y, self.w, self.h))
         dr.rect(screen, self.current_color,
-                (self.x, self.y, self.w, self.h), width=2)
+                (self.x, self.y, self.w, self.h), width=self.border_w)
         font = pg.font.Font(None, self.font_size)
         text = font.render(self.current_text, True, self.current_color)
         screen.blit(text, (self.x + self.w // 2 - text.get_width() // 2,
@@ -85,35 +92,40 @@ class TextDisplay(BaseWidget):
     def __init__(self, parent, rect, title, text_item,
                  title_font_size=40, item_font_size=70,
                  main_color=pg.Color(239, 242, 46),
-                 back_color=pg.Color(0, 0, 0), image=None):
+                 back_color=pg.Color(0, 0, 0), image_name=None):
         super().__init__(parent, rect)
         self.item = text_item
         self.title = title
         self.title_font_size = title_font_size
         self.item_font_size = item_font_size
+        self.indent = 5
         self.main_color = main_color
         self.back_color = back_color
-        self.image = image
+        self.border_w = 2
+        self.border_radius = 8
+        self.image_name = image_name
 
     def render(self, screen=None):
         screen = screen if screen is not None else self.parent.screen
         dr.rect(screen, self.back_color,
-                (self.x, self.y, self.w, self.h), border_radius=8)
+                (self.x, self.y, self.w, self.h),
+                border_radius=self.border_radius)
         dr.rect(screen, self.main_color,
-                (self.x, self.y, self.w, self.h), width=2, border_radius=8)
+                (self.x, self.y, self.w, self.h), width=self.border_w,
+                border_radius=self.border_radius)
 
         title_font = pg.font.Font(None, self.title_font_size)
         title = title_font.render(self.title, True, self.main_color)
         screen.blit(title, (self.x + self.w // 2 - title.get_width() // 2,
-                            self.y + 5))
+                            self.y + self.indent))
 
         item_font = pg.font.Font(None, self.item_font_size)
         item = item_font.render(self.item, True, self.main_color)
         item_x = self.x + self.w // 2 - item.get_width() // 2
-        if self.image is not None:
+        if self.image_name is not None:
             item_x = self.x + self.w - item.get_width() - self.w // 8
-            im = tr.scale(load_image('Platform.png', -1), (5 * self.w // 8,
-                                                           item.get_height()))
+            im = tr.scale(load_image(self.image_name, -1), (5 * self.w // 8,
+                                                            item.get_height()))
             screen.blit(im, (self.x + round(self.w // 8),
                         self.y + self.h - item.get_height() - 10))
         screen.blit(item, (item_x, self.y + self.h - item.get_height() - 5))
@@ -190,10 +202,10 @@ class TabWidget(BaseWidget):
     def get_widgets(self, index):
         return self.widgets[index][0]
 
-    def set_widgets(self, index, widgets):
+    def set_widgets(self, widgets, index):
         self.widgets[index][0] = widgets
 
-    def add_widget(self, index, widget):
+    def add_widget(self, widget, index):
         self.widgets[index][0].append(widget)
 
 
@@ -246,3 +258,36 @@ class Image(BaseWidget):
             else:
                 self.current_image = self.image
                 self.current_color = self.main_color
+
+
+class Label(BaseWidget):
+    def __init__(self, parent, rect, text, main_color=pg.Color(247, 180, 10),
+                 back_color=pg.Color(0, 0, 0), font_size=20, border=False,
+                 alignment=HorAlign.LEFT, indent=5):
+        super().__init__(parent, rect)
+        self.text = text
+        self.font_size = font_size
+        self.alignment = alignment
+        self.indent = indent
+        self.main_color = main_color
+        self.back_color = back_color
+        self.border = border
+        self.border_w = 2
+
+    def render(self, screen=None):
+        screen = screen if screen is not None else self.parent.screen
+        if self.border:
+            dr.rect(screen, self.back_color, (self.x, self.y, self.w, self.h))
+            dr.rect(screen, self.main_color, (self.x, self.y, self.w, self.h),
+                    width=self.border_w)
+        font = pg.font.Font(None, self.font_size)
+        text = font.render(self.text, True, self.main_color)
+        if self.alignment == HorAlign.LEFT:
+            x = self.x + self.indent
+        elif self.alignment == HorAlign.CENTER:
+            x = self.x + self.w // 2 - text.get_width() // 2
+        elif self.alignment == HorAlign.RIGHT:
+            x = self.x + self.w - self.indent
+        else:
+            return
+        screen.blit(text, (x, self.y + self.h // 2 - text.get_height() // 2))

@@ -3,7 +3,7 @@ import pygame.transform as tr
 import pygame.sprite as spr
 
 from functions import load_image, do_nothing, get_width
-from widgets import TabWidget, TextDisplay, Image
+from widgets import TabWidget, TextDisplay, Image, Label, HorAlign
 
 
 class InfoWindow:
@@ -13,6 +13,7 @@ class InfoWindow:
         self.size = (self.w, self.h) = (1400, 800)
         self.indent = 15
         self.up_indent = 60
+        self.rules_font = 30
 
         self.cursor_group = spr.Group()
 
@@ -40,6 +41,10 @@ class InfoWindow:
         self.cursor.rect = self.cursor.image.get_rect()
 
         # Создаём виджеты:
+        self.labels = [Label(self, (self.indent, self.indent,
+                                    400, self.up_indent), 'Правила игры',
+                             font_size=60, border=True,
+                             alignment=HorAlign.CENTER)]
         self.buttons = [Image(self, (self.w - self.indent - self.up_indent,
                                      self.indent,
                                      self.up_indent, self.up_indent),
@@ -54,8 +59,14 @@ class InfoWindow:
                                            self.h - self.indent * 3 -\
                                            self.up_indent),
                                     ['Основные правила', 'Блоки', 'Сокровища'])
-        self.tab_widget.set_widgets(0, [TextDisplay(self, (50, 50, 400, 100),
-                                                    'qwerty', 'boom!')])
+        items_y = self.indent
+        text = '     Цель игры - сбить триплексом все блоки на поле \
+(кроме скандиевых) и не дать триплексу упасть.'
+        h = self.rules_font
+        self.tab_widget.add_widget(Label(self, (self.indent, items_y,
+                                                self.w - 4 * self.indent, h),
+                                         text,
+                                         font_size=self.rules_font), 0)
 
         # Основной цикл игры:
         while self.running:
@@ -74,6 +85,8 @@ class InfoWindow:
             self.tab_widget.render()
             for but in self.buttons:
                 but.render()
+            for lab in self.labels:
+                lab.render()
             if pg.mouse.get_focused():
                 self.cursor_group.draw(self.screen)
 

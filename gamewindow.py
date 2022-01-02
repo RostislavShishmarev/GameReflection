@@ -60,7 +60,8 @@ class GameWindow:
         self.displays = [TextDisplay(self, (20, 10, 300, 100),
                                      'Очки', str(self.score)),
                          TextDisplay(self, (self.w // 2 - 150, 10, 300, 100),
-                                     'Жизни', str(self.lifes), image=0),
+                                     'Жизни', str(self.lifes),
+                                     image_name='Platform.png'),
                          TextDisplay(self, (self.w - 320, 10, 300, 100),
                                      'Время', self.time.strftime('%M:%S'))]
         self.all_sprites = spr.Group()
