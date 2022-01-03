@@ -156,6 +156,7 @@ class LevelMaker:
         cur = self.db.cursor()
         cur.execute('''INSERT INTO levels(name, way) VALUES(?, ?)''',
                     (input(), 'DataBases/' + name))
+        cur.execute('''INSERT INTO records(level_index) VALUES(?)''', (n, ))
         print('Сохранено.')
         self.db.commit()
 

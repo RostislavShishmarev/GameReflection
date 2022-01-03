@@ -5,6 +5,7 @@ import sqlite3
 
 from functions import load_image, do_nothing, get_width
 from widgets import Button, Image, Label, ScrollList
+from gamewindow import GameWindow
 
 
 class MainWindow:
@@ -86,6 +87,14 @@ class MainWindow:
                                  n_vizible=7)
         self.levels_widget.set_elements(self.levels)
 
+        self.savings_widget = ScrollList(self, (self.indent * 2 + levels_w,
+                                                user_h + user_font +\
+                                                self.indent * 3,
+                                                self.w - self.indent * 3 -\
+                                                levels_w, self.h - user_h -\
+                                                user_font - self.indent *\
+                                                6 - play_h), 'Сохранения')
+
         # Основной цикл игры:
         while self.running:
             # Обработка событий:
@@ -93,20 +102,33 @@ class MainWindow:
                 for but in self.buttons:
                     but.process_event(event)
                 self.levels_widget.process_event(event)
+                self.savings_widget.process_event(event)
                 if event.type == pg.QUIT:
                     self.running = False
                 if event.type == pg.MOUSEMOTION:
                     self.cursor.rect.topleft = event.pos
+
+            # Обновление элементов:
+            try:
+                cur = self.db.cursor()
+                savings = cur.execute('''SELECT saving_time, model_way, score,
+ time, lifes FROM savings WHERE level_index =
+ ?''',(self.levels_widget.get_selected_item_index() + 1, )).fetchall()
+                self.savings_widget.set_elements([(sav[0], sav[1:])
+                                                  for sav in savings])
+            except TypeError as ex:
+                self.savings_widget.set_elements([])
 
             # Отрисовка элементов:
             self.screen.blit(fone, (0, 0))
             for widget in self.buttons + self.user_widgets:
                 widget.render()
             self.levels_widget.render()
+            self.savings_widget.render()
             if pg.mouse.get_focused():
                 self.cursor_group.draw(self.screen)
 
-            # Обновление элементов:
+            # Обновление экрана:
             clock.tick(self.FPS)
             pg.display.flip()
         pg.quit()
@@ -120,7 +142,18 @@ class MainWindow:
         print('Opened')
 
     def open_gamewindow(self):
-        print('Game opened')
+        saving = self.savings_widget.get_selected_item_info()
+        if saving is None:
+            level = self.levels_widget.get_selected_item_info()
+            if level is not None:
+                self.exit()
+                self.new_window_after_self = GameWindow(self, level[0])
+            return
+        model, score, time, lifes = saving
+        time = (int(time.split()[0]), int(time.split()[1]))
+        self.exit()
+        self.new_window_after_self = GameWindow(self, model, score,
+                                                time, lifes)
 
 
 if __name__ == '__main__':

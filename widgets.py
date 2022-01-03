@@ -358,7 +358,7 @@ class ScrollList(BaseWidget):
 
         self.elements = []
         self.up_index = None
-        self.selected_index = 0
+        self.selected_index = None
 
     def render(self, screen=None):
         screen = screen if screen is not None else self.parent.screen
@@ -393,6 +393,11 @@ class ScrollList(BaseWidget):
         if event.type == pg.MOUSEWHEEL:
             if pg.mouse.get_pos() in self:
                 self.change_up(1 if event.y < 0 else -1)
+        if event.type == pg.MOUSEBUTTONDOWN:
+            if event.button == 1 and\
+                            self.trans_pos(event.pos) in self.title_label:
+                self.selected_index = None
+                print('Клик по лейблу')
         els = self.elements[self.up_index:self.up_index + self.n_vizible]
         for i, el in enumerate(els):
             self.elements[self.up_index + i].process_event(event)
@@ -404,6 +409,7 @@ class ScrollList(BaseWidget):
 
     def set_elements(self, elements, but_image=None, but_light_image=None,
                      but_slot=do_nothing):
+        self.elements = []
         h = (self.h - 3 * self.indent + self.title_label.h) //\
             self.n_vizible - self.indent
         for i, el in enumerate(elements):
@@ -412,8 +418,10 @@ class ScrollList(BaseWidget):
                                                (0, 0, self.w - self.indent * 2,
                                                 h), item, but_image=but_image,
                                                but_light_image=but_light_image,
-                                               but_slot=but_slot))
+                                               but_slot=but_slot,
+                                               information=info))
         self.up_index = None if elements == [] else 0
+        self.selected_index = None if elements == [] else self.selected_index
 
     def trans_pos(self, pos):
         '''Трансформирует абсолютную точку в относительную для дочерних
@@ -421,7 +429,12 @@ class ScrollList(BaseWidget):
         return (pos[0] - self.x, pos[1] - self.y)
 
     def get_selected_item_info(self):
+        if self.selected_index is None:
+            return
         return self.elements[self.selected_index].get_info()
+
+    def get_selected_item_index(self):
+        return self.selected_index
 
 
 class ScrollElement(BaseWidget):
