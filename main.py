@@ -1,6 +1,7 @@
 import pygame as pg
 import pygame.transform as tr
 import pygame.sprite as spr
+import sqlite3
 
 from functions import load_image, do_nothing, get_width
 from widgets import Button, Image, Label, ScrollList
@@ -13,7 +14,11 @@ class MainWindow:
         self.size = (self.w, self.h) = (1300, 760)
         self.indent = 15
 
-        self.nik = 'User'
+        self.db = sqlite3.connect('DataBases/Reflection_db.db3')
+        cur = self.db.cursor()
+        levels = cur.execute('''SELECT name, way FROM levels''').fetchall()
+        self.levels = [(lv[0], [lv[1], ]) for lv in levels]
+        self.nik = cur.execute('''SELECT nik FROM user''').fetchone()[0]
         self.photo_index = 0
         self.photos_names = ['User_cat.jpg']
 
@@ -73,13 +78,13 @@ class MainWindow:
                               slot=self.exit)]
 
         levels_w = 350
-        self.levels = ScrollList(self, (self.indent,
+        self.levels_widget = ScrollList(self, (self.indent,
                                         user_h + user_font + self.indent * 3,
                                         levels_w,
                                         self.h - user_h - user_font -\
                                         self.indent * 4), 'Уровни',
                                  n_vizible=7)
-        self.levels.set_elements([('Уровень', [])] * 10)
+        self.levels_widget.set_elements(self.levels)
 
         # Основной цикл игры:
         while self.running:
@@ -87,7 +92,7 @@ class MainWindow:
             for event in pg.event.get():
                 for but in self.buttons:
                     but.process_event(event)
-                self.levels.process_event(event)
+                self.levels_widget.process_event(event)
                 if event.type == pg.QUIT:
                     self.running = False
                 if event.type == pg.MOUSEMOTION:
@@ -97,7 +102,7 @@ class MainWindow:
             self.screen.blit(fone, (0, 0))
             for widget in self.buttons + self.user_widgets:
                 widget.render()
-            self.levels.render()
+            self.levels_widget.render()
             if pg.mouse.get_focused():
                 self.cursor_group.draw(self.screen)
 

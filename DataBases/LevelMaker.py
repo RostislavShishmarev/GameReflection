@@ -3,6 +3,7 @@ import pygame.draw as dr
 from math import ceil
 import os
 import csv
+import sqlite3
 
 
 def load_image(name, color_key=None):
@@ -93,6 +94,7 @@ class LevelMaker:
         self.button = Button(self, width // 2 - but_w // 2,
                              height - 5 - but_h, but_w, but_h,
                              'Сохранить', slot=self.save)
+        self.db = sqlite3.connect('Reflection_db.db3')
 
     def render(self, screen):
         x, y = self.left, self.top
@@ -150,7 +152,12 @@ class LevelMaker:
             wr = csv.writer(f, delimiter=';', quotechar='"')
             for row in self.board:
                 wr.writerow(row)
+        print('Введите название уровня:')
+        cur = self.db.cursor()
+        cur.execute('''INSERT INTO levels(name, way) VALUES(?, ?)''',
+                    (input(), 'DataBases/' + name))
         print('Сохранено.')
+        self.db.commit()
 
 
 if __name__ == '__main__':
