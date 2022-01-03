@@ -3,7 +3,7 @@ import pygame.transform as tr
 import pygame.sprite as spr
 
 from functions import load_image, do_nothing, get_width
-from widgets import Button, Image, Label
+from widgets import Button, Image, Label, ScrollList
 
 
 class MainWindow:
@@ -72,12 +72,22 @@ class MainWindow:
                               bord_color=pg.Color(70, 202, 232),
                               slot=self.exit)]
 
+        levels_w = 350
+        self.levels = ScrollList(self, (self.indent,
+                                        user_h + user_font + self.indent * 3,
+                                        levels_w,
+                                        self.h - user_h - user_font -\
+                                        self.indent * 4), 'Уровни',
+                                 n_vizible=7)
+        self.levels.set_elements([('Уровень', [])] * 10)
+
         # Основной цикл игры:
         while self.running:
             # Обработка событий:
             for event in pg.event.get():
                 for but in self.buttons:
                     but.process_event(event)
+                self.levels.process_event(event)
                 if event.type == pg.QUIT:
                     self.running = False
                 if event.type == pg.MOUSEMOTION:
@@ -87,6 +97,7 @@ class MainWindow:
             self.screen.blit(fone, (0, 0))
             for widget in self.buttons + self.user_widgets:
                 widget.render()
+            self.levels.render()
             if pg.mouse.get_focused():
                 self.cursor_group.draw(self.screen)
 

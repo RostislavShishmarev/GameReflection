@@ -21,6 +21,18 @@ class BaseWidget:
     def process_event(self, event, *args, **kwargs):
         pass
 
+    def set_coords(self, x, y):
+        self.x, self.y = x, y
+        self.x1, self.y1 = self.x + self.w, self.y + self.h
+
+    def set_h(self, h):
+        self.h = h
+        self.x1 = self.x + h
+
+    def set_w(self, w):
+        self.w = w
+        self.y1 = self.y + w
+
 
 class HorAlign:
     LEFT = 'left'
@@ -86,6 +98,15 @@ class Button(BaseWidget):
                 self.current_color = self.light_main_color
             else:
                 self.current_color = self.main_color
+
+    def set_color(self, color):
+        self.main_color = self.current_color = color
+        self.light_main_color = pg.Color(min(self.main_color.r + 90, 255),
+                                         min(self.main_color.g + 90, 255),
+                                         min(self.main_color.b + 90, 255))
+
+    def set_slot(self, slot):
+        self.function = slot
 
 
 class TextDisplay(BaseWidget):
@@ -259,6 +280,19 @@ class Image(BaseWidget):
                 self.current_image = self.image
                 self.current_color = self.main_color
 
+    def set_image(self, image):
+        self.image = self.current_image = image
+
+    def set_color(self, color=None):
+        self.main_color = self.current_color = color
+        self.light_main_color = pg.Color(min(self.main_color.r + 90, 255),
+                                         min(self.main_color.g + 90, 255),
+                                         min(self.main_color.b + 90, 255))\
+            if self.main_color is not None else None
+
+    def set_slot(self, slot):
+        self.slot = slot
+
 
 class Label(BaseWidget):
     def __init__(self, parent, rect, text, main_color=pg.Color(247, 180, 10),
@@ -291,3 +325,191 @@ class Label(BaseWidget):
         else:
             return
         screen.blit(text, (x, self.y + self.h // 2 - text.get_height() // 2))
+
+    def set_text(self, text):
+        self.text = text
+
+    def set_color(self, color):
+        self.main_color = color
+
+
+class ScrollList(BaseWidget):
+    def __init__(self, parent, rect, title,
+                 title_font_size=50, n_vizible=5,
+                 main_color=pg.Color(245, 127, 17),
+                 back_color=pg.Color(0, 0, 0)):
+        super().__init__(parent, rect)
+        self.main_color = main_color
+        self.back_color = back_color
+
+        self.rects_w = 2
+        self.bord_rad = 6
+        self.indent = 10
+        self.n_vizible = n_vizible
+
+        self.title = title
+        self.title_font_size = title_font_size
+        self.title_label = Label(self, (self.indent, self.indent,
+                                        self.w - 2 * self.indent,
+                                        self.title_font_size), self.title,
+                                 font_size=self.title_font_size,
+                                 main_color=self.main_color,
+                                 alignment=HorAlign.CENTER)
+
+        self.elements = []
+        self.up_index = None
+        self.selected_index = 0
+
+    def render(self, screen=None):
+        screen = screen if screen is not None else self.parent.screen
+        dr.rect(screen, self.back_color, (self.x, self.y, self.w, self.h),
+                border_radius=self.bord_rad)
+        dr.rect(screen, self.main_color, (self.x, self.y, self.w, self.h),
+                width=self.rects_w, border_radius=self.bord_rad)
+
+        self.surface = pg.Surface((self.w, self.h), pg.SRCALPHA, 32)
+        self.surface.fill(pg.Color(0, 0, 0, 1))
+        self.title_label.render(self.surface)
+        if self.up_index is None:
+            pg.Surface.blit(screen, self.surface, (self.x, self.y))
+            return
+
+        x, y = self.indent, 2 * self.indent + self.title_label.h
+        els = self.elements[self.up_index:self.up_index + self.n_vizible]
+        for i, el in enumerate(els):
+            if self.up_index + i == self.selected_index:
+                el.set_selected(True)
+            else:
+                el.set_selected(False)
+            el.set_coords(x, y)
+            el.set_number(self.up_index + i + 1)
+            el.render(self.surface)
+            y += self.indent + el.h
+        pg.Surface.blit(screen, self.surface, (self.x, self.y))
+
+    def process_event(self, event, *args, **kwargs):
+        if self.up_index is None:
+            return
+        if event.type == pg.MOUSEWHEEL:
+            if pg.mouse.get_pos() in self:
+                self.change_up(1 if event.y < 0 else -1)
+        els = self.elements[self.up_index:self.up_index + self.n_vizible]
+        for i, el in enumerate(els):
+            self.elements[self.up_index + i].process_event(event)
+
+    def change_up(self, delta):
+        new_index = self.up_index + delta
+        if 0 <= new_index < len(self.elements) - self.n_vizible + 2:
+            self.up_index = new_index
+
+    def set_elements(self, elements, but_image=None, but_light_image=None,
+                     but_slot=do_nothing):
+        h = (self.h - 3 * self.indent + self.title_label.h) //\
+            self.n_vizible - self.indent
+        for i, el in enumerate(elements):
+            item, info = el
+            self.elements.append(ScrollElement(self,
+                                               (0, 0, self.w - self.indent * 2,
+                                                h), item, but_image=but_image,
+                                               but_light_image=but_light_image,
+                                               but_slot=but_slot))
+        self.up_index = None if elements == [] else 0
+
+    def trans_pos(self, pos):
+        '''Трансформирует абсолютную точку в относительную для дочерних
+ элементов'''
+        return (pos[0] - self.x, pos[1] - self.y)
+
+    def get_selected_item_info(self):
+        return self.elements[self.selected_index].get_info()
+
+
+class ScrollElement(BaseWidget):
+    def __init__(self, parent, rect, text_item, font_size=35,
+                 but_image=None, but_light_image=None, but_slot=do_nothing,
+                 main_color=pg.Color(245, 127, 17),
+                 back_color=pg.Color(20, 20, 20), information=None):
+        super().__init__(parent, rect)
+        self.text = text_item
+        self.font_size = font_size
+        self.information = information
+
+        self.but_image = but_image
+        self.but_light_image = but_light_image
+        self.but_slot = but_slot
+
+        self.main_color = self.current_color = main_color
+        self.light_main_color = pg.Color(min(self.main_color.r + 90, 255),
+                                         min(self.main_color.g + 90, 255),
+                                         min(self.main_color.b + 90, 255))
+        self.back_color = back_color
+
+        self.indent = 5
+        self.rects_w = 3
+        self.bord_rad = 0
+        self.number = 1
+        self.selected = False
+        self.button = None
+
+        item_w = self.w - self.y - self.indent * 2
+        if self.but_image is not None:
+            item_w -= self.h + self.indent * 2
+            self.button = Image(self, (self.h + self.indent * 3 + item_w,
+                                       self.indent, self.h - self.indent * 2,
+                                       self.h - self.indent * 2),
+                                load_image(self.but_image),
+                                light_image=self.but_light_image,
+                                slot=self.but_slot)
+        self.item_label = Label(self, (self.h + 2 * self.indent, self.indent,
+                                       item_w, self.h - self.indent * 2),
+                                self.text, main_color=self.current_color,
+                                 back_color=self.back_color,
+                                font_size=self.font_size)
+        self.num_label = Label(self, (self.indent, self.indent,
+                                      self.h - self.indent * 2,
+                                      self.h - self.indent * 2),
+                                str(self.number),
+                                main_color=self.current_color,
+                                back_color=self.back_color,
+                                alignment=HorAlign.CENTER,
+                                font_size=self.font_size)
+
+
+    def render(self, screen=None, index=0):
+        screen = screen if screen is not None else self.parent.screen
+        dr.rect(screen, self.back_color, (self.x, self.y, self.w, self.h),
+                border_radius=self.bord_rad)
+        dr.rect(screen, self.current_color, (self.x, self.y, self.w, self.h),
+                width=self.rects_w, border_radius=self.bord_rad)
+
+        self.surface = pg.Surface((self.w, self.h), pg.SRCALPHA, 32)
+        self.surface.fill(pg.Color(0, 0, 0, 1))
+        dr.ellipse(self.surface, self.current_color, (self.indent, self.indent,
+                                                   self.h - self.indent * 2,
+                                                   self.h - self.indent * 2),
+                   width=self.rects_w)
+        self.num_label.render(self.surface)
+        self.item_label.render(self.surface)
+        if self.button is not None:
+            self.button.render(self.surface)
+        pg.Surface.blit(screen, self.surface, (self.x, self.y))
+
+    def set_selected(self, bool_obj):
+        self.selected = bool_obj
+        color = self.light_main_color if self.selected\
+            else self.main_color
+        self.current_color = color
+        self.num_label.set_color(self.current_color)
+        self.item_label.set_color(self.current_color)
+
+    def get_info(self):
+        return self.information
+
+    def set_number(self, num):
+        self.number = num
+        self.num_label.set_text(str(self.number))
+
+    def process_event(self, event, *args, **kwargs):
+        if event.type == pg.MOUSEBUTTONDOWN:
+            if self.parent.trans_pos(event.pos) in self and event.button == 1:
+                self.parent.selected_index = self.number - 1
