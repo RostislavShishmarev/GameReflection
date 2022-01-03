@@ -4,7 +4,7 @@ import pygame.sprite as spr
 import sqlite3
 
 from functions import load_image, do_nothing, get_width
-from widgets import Button, Image, Label, ScrollList
+from widgets import Button, Image, Label, ScrollList, ResultsTextDisplay
 from gamewindow import GameWindow
 
 
@@ -17,8 +17,9 @@ class MainWindow:
 
         self.db = sqlite3.connect('DataBases/Reflection_db.db3')
         cur = self.db.cursor()
-        levels = cur.execute('''SELECT name, way FROM levels''').fetchall()
-        self.levels = [(lv[0], [lv[1], ]) for lv in levels]
+        levels = cur.execute('''SELECT name, way, score, time
+ FROM levels''').fetchall()
+        self.levels = [(lv[0], lv[1:]) for lv in levels]
         self.nik = cur.execute('''SELECT nik FROM user''').fetchone()[0]
         self.photo_index = 0
         self.photos_names = ['User_cat.jpg']
@@ -85,7 +86,8 @@ class MainWindow:
                                         self.h - user_h - user_font -\
                                         self.indent * 4), 'Уровни',
                                  n_vizible=7)
-        self.levels_widget.set_elements(self.levels)
+        self.levels_widget.set_elements(self.levels,
+                                        select_func=self.update_window)
 
         self.savings_widget = ScrollList(self, (self.indent * 2 + levels_w,
                                                 user_h + user_font +\
@@ -94,6 +96,12 @@ class MainWindow:
                                                 levels_w, self.h - user_h -\
                                                 user_font - self.indent *\
                                                 6 - play_h), 'Сохранения')
+
+        res_w = (self.w - self.indent * 4 - levels_w - but_h) // 2
+        self.results = ResultsTextDisplay(self, (self.indent * 2 +\
+                                                 levels_w + res_w,
+                                                 self.indent, res_w,
+                                                 user_h + user_font))
 
         # Основной цикл игры:
         while self.running:
@@ -108,23 +116,13 @@ class MainWindow:
                 if event.type == pg.MOUSEMOTION:
                     self.cursor.rect.topleft = event.pos
 
-            # Обновление элементов:
-            try:
-                cur = self.db.cursor()
-                savings = cur.execute('''SELECT saving_time, model_way, score,
- time, lifes FROM savings WHERE level_index =
- ?''',(self.levels_widget.get_selected_item_index() + 1, )).fetchall()
-                self.savings_widget.set_elements([(sav[0], sav[1:])
-                                                  for sav in savings])
-            except TypeError as ex:
-                self.savings_widget.set_elements([])
-
             # Отрисовка элементов:
             self.screen.blit(fone, (0, 0))
             for widget in self.buttons + self.user_widgets:
                 widget.render()
             self.levels_widget.render()
             self.savings_widget.render()
+            self.results.render()
             if pg.mouse.get_focused():
                 self.cursor_group.draw(self.screen)
 
@@ -134,6 +132,26 @@ class MainWindow:
         pg.quit()
         if self.new_window_after_self is not None:
             self.new_window_after_self.run()
+
+    def update_window(self):
+        try:
+            cur = self.db.cursor()
+            savings = cur.execute('''SELECT saving_time, model_way, score,
+ time, lifes FROM savings WHERE level_index =
+ ?''',(self.levels_widget.get_selected_item_index() + 1, )).fetchall()
+            self.savings_widget.set_elements([(sav[0], sav[1:])
+                                              for sav in savings])
+        except TypeError as ex:
+            self.savings_widget.set_elements([])
+        records = self.levels_widget.get_selected_item_info()
+        print(records)
+        if records is not None:
+            score, time = records[1:]
+            if score is not None and time is not None:
+                time = (int(time.split()[0]), int(time.split()[1]))
+                self.results.set_records(score, time)
+            else:
+                self.results.set_records()
 
     def exit(self):
         self.running = False
