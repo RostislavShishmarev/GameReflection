@@ -20,7 +20,8 @@ class MainWindow:
         levels = cur.execute('''SELECT name, way, score, time
  FROM levels''').fetchall()
         self.levels = [(lv[0], lv[1:]) for lv in levels]
-        self.nik = cur.execute('''SELECT nik FROM user''').fetchone()[0]
+        (self.nik, self.victs, self.defs) = cur.execute('''SELECT nik,
+ victories, defeats FROM user''').fetchone()
         self.photo_index = 0
         self.photos_names = ['User_cat.jpg']
 
@@ -85,9 +86,8 @@ class MainWindow:
                                         levels_w,
                                         self.h - user_h - user_font -\
                                         self.indent * 4), 'Уровни',
-                                 n_vizible=7)
-        self.levels_widget.set_elements(self.levels,
-                                        select_func=self.update_window)
+                                 n_vizible=7, select_func=self.update_window)
+        self.levels_widget.set_elements(self.levels)
 
         self.savings_widget = ScrollList(self, (self.indent * 2 + levels_w,
                                                 user_h + user_font +\
@@ -101,7 +101,9 @@ class MainWindow:
         self.results = ResultsTextDisplay(self, (self.indent * 2 +\
                                                  levels_w + res_w,
                                                  self.indent, res_w,
-                                                 user_h + user_font))
+                                                 user_h + user_font),
+                                          victories=self.victs,
+                                          defeats=self.defs)
 
         # Основной цикл игры:
         while self.running:
@@ -137,24 +139,37 @@ class MainWindow:
         try:
             cur = self.db.cursor()
             savings = cur.execute('''SELECT saving_time, model_way, score,
- time, lifes FROM savings WHERE level_index =
- ?''',(self.levels_widget.get_selected_item_index() + 1, )).fetchall()
+ time, lifes, id FROM savings WHERE level_id =
+ ?''', (self.levels_widget.get_selected_item_index() + 1, )).fetchall()
+            im = load_image('Delete.png', -1)
+            light_im = load_image('Delete_light.png', -1)
             self.savings_widget.set_elements([(sav[0], sav[1:])
-                                              for sav in savings])
+                                              for sav in savings],
+                                             but_image=im,
+                                             but_light_image=light_im,
+                                             but_slot=self.delete_saving)
         except TypeError as ex:
             self.savings_widget.set_elements([])
         records = self.levels_widget.get_selected_item_info()
-        print(records)
         if records is not None:
             score, time = records[1:]
             if score is not None and time is not None:
                 time = (int(time.split()[0]), int(time.split()[1]))
                 self.results.set_records(score, time)
-            else:
-                self.results.set_records()
+                return
+        self.results.set_records()
 
     def exit(self):
         self.running = False
+
+    def delete_saving(self):
+        if self.savings_widget.get_selected_item_info() is None:
+            return
+        id = self.savings_widget.get_selected_item_info()[-1]
+        cur = self.db.cursor()
+        cur.execute('''DELETE FROM savings WHERE id = ?''', (id, ))
+        self.db.commit()
+        self.update_window()
 
     def open_settings(self):
         print('Opened')
@@ -167,7 +182,7 @@ class MainWindow:
                 self.exit()
                 self.new_window_after_self = GameWindow(self, level[0])
             return
-        model, score, time, lifes = saving
+        model, score, time, lifes = saving[:4]
         time = (int(time.split()[0]), int(time.split()[1]))
         self.exit()
         self.new_window_after_self = GameWindow(self, model, score,

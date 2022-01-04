@@ -2,8 +2,8 @@ import pygame as pg
 import pygame.draw as dr
 import pygame.transform as tr
 
-from datetime import datetime as DateTime
-from functions import do_nothing, get_width, load_image
+from functions import do_nothing, get_width, load_image, str_time,\
+    get_max_font_size
 
 
 class BaseWidget:
@@ -35,11 +35,20 @@ class BaseWidget:
         self.w = w
         self.y1 = self.y + w
 
+    def trans_pos(self, pos):
+        '''Трансформирует абсолютную точку в относительную для дочерних
+ элементов'''
+        return (pos[0] - self.x, pos[1] - self.y)
+
 
 class HorAlign:
     LEFT = 'left'
     RIGHT = 'right'
     CENTER = 'center'
+
+
+class ElementDeletionAtCycle(Exception):
+    pass
 
 
 class Button(BaseWidget):
@@ -334,15 +343,21 @@ class Label(BaseWidget):
     def set_color(self, color):
         self.main_color = color
 
+    def set_font_size(self, font_size):
+        self.font_size = font_size
+
 
 class ScrollList(BaseWidget):
     def __init__(self, parent, rect, title,
                  title_font_size=50, n_vizible=5,
                  main_color=pg.Color(245, 127, 17),
-                 back_color=pg.Color(0, 0, 0)):
+                 back_color=pg.Color(0, 0, 0),
+                 select_func=do_nothing):
         super().__init__(parent, rect)
         self.main_color = main_color
         self.back_color = back_color
+
+        self.select_func = select_func
 
         self.rects_w = 2
         self.bord_rad = 6
@@ -399,19 +414,24 @@ class ScrollList(BaseWidget):
             if event.button == 1 and\
                             self.trans_pos(event.pos) in self.title_label:
                 self.selected_index = None
+                self.select_func()
         els = self.elements[self.up_index:self.up_index + self.n_vizible]
         for i, el in enumerate(els):
-            self.elements[self.up_index + i].process_event(event)
+            try:
+                self.elements[self.up_index + i].process_event(event, *args,
+                                                               **kwargs)
+            except ElementDeletionAtCycle as ex:
+                break
 
     def change_up(self, delta):
         new_index = self.up_index + delta
-        if 0 <= new_index < len(self.elements) - self.n_vizible + 2:
+        if 0 <= new_index < len(self.elements) - self.n_vizible + 1:
             self.up_index = new_index
 
     def set_elements(self, elements, but_image=None, but_light_image=None,
-                     but_slot=do_nothing, select_func=do_nothing):
+                     but_slot=do_nothing):
         self.elements = []
-        h = (self.h - 3 * self.indent + self.title_label.h) //\
+        h = (self.h - 3 * self.indent - self.title_label.h) //\
             self.n_vizible - self.indent
         for i, el in enumerate(elements):
             item, info = el
@@ -421,14 +441,9 @@ class ScrollList(BaseWidget):
                                                but_light_image=but_light_image,
                                                but_slot=but_slot,
                                                information=info,
-                                               select_func=select_func))
+                                               select_func=self.select_func))
         self.up_index = None if elements == [] else 0
         self.selected_index = None if elements == [] else self.selected_index
-
-    def trans_pos(self, pos):
-        '''Трансформирует абсолютную точку в относительную для дочерних
- элементов'''
-        return (pos[0] - self.x, pos[1] - self.y)
 
     def get_selected_item_info(self):
         if self.selected_index is None:
@@ -468,15 +483,15 @@ class ScrollElement(BaseWidget):
         self.selected = False
         self.button = None
 
-        item_w = self.w - self.y - self.indent * 2
+        item_w = self.w - self.h - self.indent * 2
         if self.but_image is not None:
             item_w -= self.h + self.indent * 2
             self.button = Image(self, (self.h + self.indent * 3 + item_w,
                                        self.indent, self.h - self.indent * 2,
                                        self.h - self.indent * 2),
-                                load_image(self.but_image),
+                                self.but_image,
                                 light_image=self.but_light_image,
-                                slot=self.but_slot)
+                                slot=self.but_slot, key=pg.K_DELETE)
         self.item_label = Label(self, (self.h + 2 * self.indent, self.indent,
                                        item_w, self.h - self.indent * 2),
                                 self.text, main_color=self.current_color,
@@ -490,7 +505,6 @@ class ScrollElement(BaseWidget):
                                 back_color=self.back_color,
                                 alignment=HorAlign.CENTER,
                                 font_size=self.font_size)
-
 
     def render(self, screen=None, index=0):
         screen = screen if screen is not None else self.parent.screen
@@ -531,23 +545,49 @@ class ScrollElement(BaseWidget):
             if self.parent.trans_pos(event.pos) in self and event.button == 1:
                 self.parent.selected_index = self.number - 1
                 self.select_function()
+        if self.button is None:
+            return
+        if event.type == pg.MOUSEMOTION:
+            if self.trans_pos(self.parent.trans_pos(event.pos)) in self.button:
+                self.button.current_image = self.button.light_image
+            else:
+                self.button.current_image = self.button.image
+        if event.type == pg.MOUSEBUTTONDOWN:
+            if self.trans_pos(self.parent.trans_pos(event.pos)) in\
+                    self.button and event.button == 1:
+                self.button.slot()
+                raise ElementDeletionAtCycle
 
 
 class ResultsTextDisplay(BaseWidget):
     def __init__(self, parent, rect, score=0, time=(0, 0), victories=0,
                  defeats=0, item_font_size=25, title_font_size=30,
+                 result_font_size=60,
                  main_color=pg.Color(239, 242, 46),
                  back_color=pg.Color(0, 0, 0)):
         super().__init__(parent, rect)
         self.score, self.time = score, time
         self.victories, self.defeats = victories, defeats
-        self.title_font_size = title_font_size
-        self.item_font_size = item_font_size
-        self.indent = 10
+
+        self.indent = 5
         self.main_color = main_color
         self.back_color = back_color
         self.border_w = 2
         self.border_radius = 0
+
+        self.title_font_size = title_font_size
+        self.item_font_size = item_font_size
+        self.results_font_size = get_max_font_size(str(max((self.victories,
+                                                            self.defeats))),
+                                                   self.w // 3 -\
+                                                   self.indent * 2,
+                                                   start_font=result_font_size)
+        self.rec_font_size = get_max_font_size(max((str(self.score),
+                                                    str_time(self.time)),
+                                                   key=lambda x: len(x)),
+                                               self.w // 6 - self.indent * 2,
+                                               start_font=self.item_font_size)
+
         self.title_labels = [Label(self, (0, 0, self.w // 3, self.h // 3),
                                    'Рекорды:', main_color=self.main_color,
                                    alignment=HorAlign.CENTER,
@@ -562,9 +602,6 @@ class ResultsTextDisplay(BaseWidget):
                                    'Поражений:', main_color=self.main_color,
                                    alignment=HorAlign.CENTER,
                                    font_size=self.title_font_size)]
-        games_font = get_max_font_size(str(max((self.victories,
-                                                self.defeats))), self.w // 3,
-                                       start_font=60)
         self.const_labels = [Label(self, (0, self.h // 3, self.w // 6,
                                           self.h // 3), 'Очки:',
                                    main_color=self.main_color,
@@ -575,29 +612,38 @@ class ResultsTextDisplay(BaseWidget):
                                    main_color=self.main_color,
                                    alignment=HorAlign.CENTER,
                                    font_size=self.item_font_size),
-                             Label(self, (self.w // 3, self.h // 3,
-                                          self.w // 3, self.h // 3 * 2),
+                             Label(self, (self.w // 3 + self.indent,
+                                          self.h // 3 + self.indent,
+                                          self.w // 3 - self.indent * 2,
+                                          self.h // 3 * 2 - self.indent * 2),
                                    str(self.victories),
                                    main_color=self.main_color,
                                    alignment=HorAlign.CENTER,
-                                   font_size=games_font),
-                             Label(self, (self.w // 3 * 2, self.h // 3,
-                                          self.w // 3, self.h // 3 * 2),
+                                   font_size=self.results_font_size),
+                             Label(self, (self.w // 3 * 2 + self.indent,
+                                          self.h // 3 + self.indent,
+                                          self.w // 3 - self.indent * 2,
+                                          self.h // 3 * 2 - self.indent * 2),
                                    str(self.defeats),
                                    main_color=self.main_color,
                                    alignment=HorAlign.CENTER,
-                                   font_size=games_font)]
-        self.score_label = Label(self, (self.w // 6, self.h // 3, self.w // 6,
-                                          self.h // 3), str(self.score),
-                                main_color=self.main_color,
-                                alignment=HorAlign.CENTER,
-                                font_size=self.item_font_size)
-        self.time_label = Label(self, (self.w // 6, self.h // 3 * 2,
-                                       self.w // 6, self.h // 3),
+                                   font_size=self.results_font_size)]
+        self.score_label = Label(self, (self.w // 6 + self.indent,
+                                        self.h // 3 + self.indent,
+                                        self.w // 6 - self.indent * 2,
+                                        self.h // 3 - self.indent * 2),
+                                 str(self.score),
+                                 main_color=self.main_color,
+                                 alignment=HorAlign.CENTER,
+                                 font_size=self.rec_font_size)
+        self.time_label = Label(self, (self.w // 6 + self.indent,
+                                       self.h // 3 * 2 + self.indent,
+                                       self.w // 6 - self.indent * 2,
+                                       self.h // 3 - self.indent * 2),
                                 str_time(self.time),
                                 main_color=self.main_color,
                                 alignment=HorAlign.CENTER,
-                                font_size=self.item_font_size)
+                                font_size=self.rec_font_size)
 
     def render(self, screen=None):
         screen = screen if screen is not None else self.parent.screen
@@ -613,6 +659,14 @@ class ResultsTextDisplay(BaseWidget):
             lab.render(self.surface)
         self.score_label.render(self.surface)
         self.time_label.render(self.surface)
+        dr.line(self.surface, self.main_color, (self.w // 3, 0),
+                (self.w // 3, self.h))
+        dr.line(self.surface, self.main_color, (self.w // 3 * 2, 0),
+                (self.w // 3 * 2, self.h))
+        dr.line(self.surface, self.main_color, (0, self.h // 3),
+                (self.w, self.h // 3))
+        dr.line(self.surface, self.main_color, (0, self.h // 3 * 2),
+                (self.w // 3, self.h // 3 * 2))
         pg.Surface.blit(screen, self.surface, (self.x, self.y))
 
     def set_records(self, score=0, time=(0, 0)):
@@ -620,17 +674,10 @@ class ResultsTextDisplay(BaseWidget):
         self.time = time
         self.score_label.set_text(str(self.score))
         self.time_label.set_text(str_time(self.time))
-
-
-def get_max_font_size(text, w, start_font=200):
-    while True:
-        text_font = pg.font.Font(None, start_font)
-        text_sc = text_font.render(text, True, pg.Color(0, 0, 0))
-        if text_sc.get_width() < w:
-            return start_font
-        start_font -= 1
-
-
-def str_time(time_tuple):
-    time = DateTime(2020, 1, 1, 1, *time_tuple)
-    return time.strftime('%M:%S')
+        self.rec_font_size = get_max_font_size(max((str(self.score),
+                                                    str_time(self.time)),
+                                                   key=lambda x: len(x)),
+                                               self.w // 6 - self.indent * 2,
+                                               start_font=self.item_font_size)
+        self.score_label.set_font_size(self.rec_font_size)
+        self.time_label.set_font_size(self.rec_font_size)
