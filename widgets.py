@@ -384,11 +384,11 @@ class ScrollList(BaseWidget):
         dr.rect(screen, self.main_color, (self.x, self.y, self.w, self.h),
                 width=self.rects_w, border_radius=self.bord_rad)
 
-        self.surface = pg.Surface((self.w, self.h), pg.SRCALPHA, 32)
-        self.surface.fill(pg.Color(0, 0, 0, 1))
-        self.title_label.render(self.surface)
+        surface = pg.Surface((self.w, self.h), pg.SRCALPHA, 32)
+        surface.fill(pg.Color(0, 0, 0, 1))
+        self.title_label.render(surface)
         if self.up_index is None:
-            pg.Surface.blit(screen, self.surface, (self.x, self.y))
+            pg.Surface.blit(screen, surface, (self.x, self.y))
             return
 
         x, y = self.indent, 2 * self.indent + self.title_label.h
@@ -400,9 +400,9 @@ class ScrollList(BaseWidget):
                 el.set_selected(False)
             el.set_coords(x, y)
             el.set_number(self.up_index + i + 1)
-            el.render(self.surface)
+            el.render(surface)
             y += self.indent + el.h
-        pg.Surface.blit(screen, self.surface, (self.x, self.y))
+        pg.Surface.blit(screen, surface, (self.x, self.y))
 
     def process_event(self, event, *args, **kwargs):
         if self.up_index is None:
@@ -491,7 +491,7 @@ class ScrollElement(BaseWidget):
                                        self.h - self.indent * 2),
                                 self.but_image,
                                 light_image=self.but_light_image,
-                                slot=self.but_slot, key=pg.K_DELETE)
+                                slot=self.but_slot)
         self.item_label = Label(self, (self.h + 2 * self.indent, self.indent,
                                        item_w, self.h - self.indent * 2),
                                 self.text, main_color=self.current_color,
@@ -513,17 +513,17 @@ class ScrollElement(BaseWidget):
         dr.rect(screen, self.current_color, (self.x, self.y, self.w, self.h),
                 width=self.rects_w, border_radius=self.bord_rad)
 
-        self.surface = pg.Surface((self.w, self.h), pg.SRCALPHA, 32)
-        self.surface.fill(pg.Color(0, 0, 0, 1))
-        dr.ellipse(self.surface, self.current_color, (self.indent, self.indent,
-                                                   self.h - self.indent * 2,
-                                                   self.h - self.indent * 2),
+        surface = pg.Surface((self.w, self.h), pg.SRCALPHA, 32)
+        surface.fill(pg.Color(0, 0, 0, 1))
+        dr.ellipse(surface, self.current_color, (self.indent, self.indent,
+                                                 self.h - self.indent * 2,
+                                                 self.h - self.indent * 2),
                    width=self.rects_w)
-        self.num_label.render(self.surface)
-        self.item_label.render(self.surface)
+        self.num_label.render(surface)
+        self.item_label.render(surface)
         if self.button is not None:
-            self.button.render(self.surface)
-        pg.Surface.blit(screen, self.surface, (self.x, self.y))
+            self.button.render(surface)
+        pg.Surface.blit(screen, surface, (self.x, self.y))
 
     def set_selected(self, bool_obj):
         self.selected = bool_obj

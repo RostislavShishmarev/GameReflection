@@ -40,5 +40,8 @@ def get_max_font_size(text, w, start_font=200):
 
 
 def str_time(time_tuple):
-    time = DateTime(2020, 1, 1, 1, *time_tuple)
-    return time.strftime('%M:%S')
+    return make_tuple_time(time_tuple).strftime('%M:%S')
+
+
+def make_tuple_time(time_tuple):
+    return DateTime(2020, 1, 1, 1, *time_tuple)
