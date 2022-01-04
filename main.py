@@ -8,6 +8,7 @@ import os
 
 from datetime import datetime as DateTime
 from datetime import timedelta as TimeDelta
+from math import floor
 from functions import load_image, do_nothing, get_width, str_time,\
     make_tuple_time
 from widgets import Button, TextDisplay, Image, Label, ScrollList,\
@@ -336,9 +337,9 @@ class MainWindow:
         (self.nik, self.victs, self.defs) = cur.execute('''SELECT nik,
  victories, defeats FROM user''').fetchone()
         self.photos_names = ['User_cat.jpg', 'User_bear.jpg',
-                             'User_dragon.jpg', 'User_phoenix.jpg']
-        self.photo_index = round(len(self.levels) / len(levels) *\
-                                 (len(self.photos_names) - 1))
+                             'User_dragon2.jpg', 'User_phoenix.jpg']
+        self.photo_index = floor(len(self.levels) / len(levels) *\
+                                 (len(self.photos_names) - 0.1))
 
         self.cursor_group = spr.Group()
 

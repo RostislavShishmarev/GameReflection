@@ -105,6 +105,7 @@ class Platform(AnimatedSprite):
         vy -= step
         self.angles_dict[range(self.w // 40 * 19,
                                self.w // 40 * 21)] = (vx, vy)
+        print(vx, vy, 'задано')
         vx += step
         vy += step
         self.angles_dict[range(self.w // 40 * 21,
@@ -117,6 +118,8 @@ class Platform(AnimatedSprite):
 
     def collide_triplex(self, point):
         x = point[0]
+        if x in range(self.edge, self.w - self.edge):
+            x += 5  # Поправка на погрешность в маске триплекса
         from_start = self.parent.triplex.vx == self.parent.triplex.vy == 0
         for range_ in self.angles_dict.keys():
             if x in range_:
