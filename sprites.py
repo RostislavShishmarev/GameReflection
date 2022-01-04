@@ -105,7 +105,6 @@ class Platform(AnimatedSprite):
         vy -= step
         self.angles_dict[range(self.w // 40 * 19,
                                self.w // 40 * 21)] = (vx, vy)
-        print(vx, vy, 'задано')
         vx += step
         vy += step
         self.angles_dict[range(self.w // 40 * 21,

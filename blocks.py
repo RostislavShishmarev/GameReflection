@@ -11,6 +11,7 @@ class Block(spr.Sprite):
     def __init__(self, parent, x, y, w, h, i, j, *groups):
         super().__init__(*groups)
         self.parent = parent
+        self.groups = groups
         self.w, self.h, self.i, self.j = w, h, i, j
         self.image = tr.scale(load_image('Block.png'), (self.w, self.h))
         self.rect = self.image.get_rect()
@@ -97,17 +98,23 @@ class BrickedBlock(Block):
         super().__init__(parent, x, y, w, h, i, j, *groups)
         self.image = tr.scale(load_image('Bricked_block.png'),
                               (self.w, self.h))
-        self.before_crushing = 2
-        self.crush_score = 200
+        self.treasure_class = None
+        self.crush_score = 50
 
     def crush(self):
-        self.before_crushing -= 1
-        if self.before_crushing == 1:
-            self.image = tr.scale(load_image('Bricked_block_crushing.png'),
+        super().crush()
+        block = CrushedBrickedBlock(self.parent, self.rect.x, self.rect.y,
+                                    self.w, self.h, self.i, self.j,
+                                    *self.groups)
+        self.parent.blocks[self.i][self.j] = block
+
+
+class CrushedBrickedBlock(Block):
+    def __init__(self, parent, x, y, w, h, i, j, *groups):
+        super().__init__(parent, x, y, w, h, i, j, *groups)
+        self.image = tr.scale(load_image('Bricked_block_crushing.png'),
                               (self.w, self.h))
-            self.parent.score += 50
-        if self.before_crushing <= 0:
-            super().crush()
+        self.crush_score = 200
 
 
 class DeathBlock(Block):

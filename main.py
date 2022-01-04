@@ -14,7 +14,8 @@ from functions import load_image, do_nothing, get_width, str_time,\
 from widgets import Button, TextDisplay, Image, Label, ScrollList,\
     ResultsTextDisplay
 from sprites import Platform, Triplex, Border
-from blocks import Block, DeathBlock, ExplodingBlock, ScBlock, BrickedBlock
+from blocks import Block, DeathBlock, ExplodingBlock, ScBlock, BrickedBlock,\
+    CrushedBrickedBlock
 
 
 class GameWindow:
@@ -25,12 +26,15 @@ class GameWindow:
                             'Sc_block.png': ScBlock,
                             'Bricked_block.png': BrickedBlock,
                             'Death_block.png': DeathBlock,
-                            'Exploding_block.png': ExplodingBlock}
+                            'Exploding_block.png': ExplodingBlock,
+                            'Bricked_block_crushing.png': CrushedBrickedBlock}
         self.blocks_code_dict = {'Block': 'Block.png',
                                  'ScBlock': 'Sc_block.png',
                                  'BrickedBlock': 'Bricked_block.png',
                                  'DeathBlock': 'Death_block.png',
-                                 'ExplodingBlock': 'Exploding_block.png'}
+                                 'ExplodingBlock': 'Exploding_block.png',
+                                 'CrushedBrickedBlock':
+                                     'Bricked_block_crushing.png'}
 
         self.parent = parent
         self.mod_name = csv_model_name
@@ -237,8 +241,8 @@ class GameWindow:
                     if b is None:
                         mod_row.append('nothing')
                     else:
-                        cl_name = self.blocks_code_dict[b.__class__.__name__]
-                        mod_row.append(cl_name)
+                        code_name = self.blocks_code_dict[b.__class__.__name__]
+                        mod_row.append(code_name)
                 wr.writerow(mod_row)
         cur = self.parent.db.cursor()
         time = str(self.time.minute) + ' ' + str(self.time.second)
@@ -331,9 +335,9 @@ class MainWindow:
 
         self.db = sqlite3.connect('DataBases/Reflection_db.db3')
         cur = self.db.cursor()
-        levels = cur.execute('''SELECT name, way, score, time, opened
+        levels = cur.execute('''SELECT name, way, score, time, id, opened
  FROM levels''').fetchall()
-        self.levels = [(lv[0], lv[1:4]) for lv in levels if lv[-1]]
+        self.levels = [(lv[0], lv[1:5]) for lv in levels if lv[-1]]
         (self.nik, self.victs, self.defs) = cur.execute('''SELECT nik,
  victories, defeats FROM user''').fetchone()
         self.photos_names = ['User_cat.jpg', 'User_bear.jpg',
@@ -458,7 +462,7 @@ class MainWindow:
             cur = self.db.cursor()
             savings = cur.execute('''SELECT saving_time, model_way, score,
  time, lifes, id FROM savings WHERE level_id =
- ?''', (self.levels_widget.get_selected_item_index() + 1, )).fetchall()
+ ?''', (self.levels_widget.get_selected_item_info()[-1], )).fetchall()
             im = load_image('Delete.png', -1)
             light_im = load_image('Delete_light.png', -1)
             self.savings_widget.set_elements([(sav[0], sav[1:])
@@ -470,7 +474,7 @@ class MainWindow:
             self.savings_widget.set_elements([])
         records = self.levels_widget.get_selected_item_info()
         if records is not None:
-            score, time = records[1:]
+            score, time = records[1:3]
             if score is not None and time is not None:
                 time = (int(time.split()[0]), int(time.split()[1]))
                 self.results.set_records(score, time)
