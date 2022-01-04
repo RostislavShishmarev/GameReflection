@@ -48,20 +48,21 @@ class GameWindow:
         self.game_ended = False
 
         # Создаём виджеты:
-        self.buttons = [Button(self, 20, self.h - 60, 350, 50,
+        self.buttons = [Button(self, (20, self.h - 60, 350, 50),
                                'Сохранить', slot=self.save,
                                key=pg.K_s, modifier=pg.KMOD_CTRL),
-                        Button(self, self.w // 2 - 175, self.h - 60, 350, 50,
+                        Button(self, (self.w // 2 - 175, self.h - 60, 350, 50),
                                'Пауза', slot=self.change_pause,
                                text2='Продолжить', key=pg.K_SPACE),
-                        Button(self, self.w - 370, self.h - 60, 350, 50,
+                        Button(self, (self.w - 370, self.h - 60, 350, 50),
                                'Выход', slot=self.exit,
                                key=pg.K_HOME, modifier=pg.KMOD_CTRL)]
-        self.displays = [TextDisplay(self, 20, 10, 300, 100,
+        self.displays = [TextDisplay(self, (20, 10, 300, 100),
                                      'Очки', str(self.score)),
-                         TextDisplay(self, self.w // 2 - 150, 10, 300, 100,
-                                     'Жизни', str(self.lifes), image=0),
-                         TextDisplay(self, self.w - 320, 10, 300, 100,
+                         TextDisplay(self, (self.w // 2 - 150, 10, 300, 100),
+                                     'Жизни', str(self.lifes),
+                                     image_name='Platform.png'),
+                         TextDisplay(self, (self.w - 320, 10, 300, 100),
                                      'Время', self.time.strftime('%M:%S'))]
         self.all_sprites = spr.Group()
         self.cursor_group = spr.Group()
