@@ -188,7 +188,7 @@ class Triplex(spr.Sprite):
             if block is not None:
                 point = spr.collide_mask(block, self)
                 if point is not None:
-                    block.collide_triplex(point)
+                    block.collide_triplex()
 
         # Защита от выталкивания за пределы поля:
         if self.rect.y < self.parent.blocks_top:

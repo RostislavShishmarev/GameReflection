@@ -19,18 +19,22 @@ class Block(spr.Sprite):
 
         self.ver_bord_group = spr.Group()
         self.hor_bord_group = spr.Group()
-        self.borders = [BlockBorder(self, x, y, 1, self.h,
-                                        [self.parent.all_sprites,
-                                         self.ver_bord_group]),
+        self.borders = [BlockBorder(self, x, y, 1, self.h, Place.LEFT,
+                                    self.parent.all_sprites,
+                                        self.ver_bord_group),
                         BlockBorder(self, x + self.w - 1, y, 1, self.h,
-                                        [self.parent.all_sprites,
-                                         self.ver_bord_group]),
-                        BlockBorder(self, x + 1, y, self.w - 2, 1,
-                                        [self.parent.all_sprites,
-                                         self.hor_bord_group]),
+                                    Place.RIGHT,
+                                    self.parent.all_sprites,
+                                    self.ver_bord_group),
+                        BlockBorder(self, x + 1, y, self.w - 2, 1, Place.TOP,
+                                    self.parent.all_sprites,
+                                        self.hor_bord_group),
                         BlockBorder(self, x + 1, y + self.h - 1, self.w - 2, 1,
-                                        [self.parent.all_sprites,
-                                         self.hor_bord_group])]
+                                    Place.BOTTOM,
+                                    self.parent.all_sprites,
+                                    self.hor_bord_group)]
+
+        self.crush_self = False
 
         self.mask = pg.mask.from_surface(self.image)
         self.crush_score = 100
@@ -51,32 +55,33 @@ class Block(spr.Sprite):
                                 self.parent.all_sprites,
                                 self.parent.treasures_group)
 
-    def collide_triplex(self, point):
+    def collide_triplex(self):
         self.crush_self = False
-        old_x, old_y = point
         old_vx, old_vy = self.parent.triplex.vx, self.parent.triplex.vy
         ver_bord = spr.spritecollideany(self.parent.triplex,
                                         self.ver_bord_group)
         if ver_bord and spr.collide_mask(self.parent.triplex, ver_bord)\
-                and ((old_x < self.w / 2 and old_vx >= 0) or
-                         (old_x > self.w / 2 and old_vx <= 0)):
+                and ((ver_bord.place == Place.LEFT and old_vx >= 0) or
+                         (ver_bord.place == Place.RIGHT and old_vx <= 0)):
             self.parent.triplex.set_vx(-old_vx)
             self.crush_self = True
         hor_bord = spr.spritecollideany(self.parent.triplex,
                                         self.hor_bord_group)
         if hor_bord and spr.collide_mask(self.parent.triplex, hor_bord)\
-                and ((old_y < self.h / 2 and old_vy >= 0) or
-                         (old_y > self.h / 2 and old_vy <= 0)):
+                and ((hor_bord.place == Place.TOP and old_vy >= 0) or
+                         (hor_bord.place == Place.BOTTOM and old_vy <= 0)):
             self.parent.triplex.set_vy(-old_vy)
             self.crush_self = True
         if self.crush_self:
             self.crush()
             self.collide_sound.play()
-        if not self.crush_self and not isinstance(self, ScBlock):
-            self.parent.triplex.set_vx(-old_vx)
-            self.parent.triplex.set_vy(-old_vy)
-            self.crush()
-            self.collide_sound.play()
+
+
+class Place:
+    TOP = 'top'
+    BOTTOM = 'bottom'
+    LEFT = 'left'
+    RIGHT = 'right'
 
 
 class ScBlock(Block):
@@ -197,12 +202,13 @@ class ExplodingBlock(Block):
 
 
 class BlockBorder(spr.Sprite):
-    def __init__(self, parent, x, y, w, h, *groups):
+    def __init__(self, parent, x, y, w, h, place, *groups):
         super().__init__(*groups)
         self.parent = parent
         self.w, self.h = w, h
         self.image = tr.scale(load_image('Block_border.png'), (self.w, self.h))
         self.rect = self.image.get_rect()
         self.rect.topleft = (x, y)
+        self.place = place
 
         self.mask = pg.mask.from_surface(self.image)

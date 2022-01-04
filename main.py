@@ -402,7 +402,7 @@ class MainWindow:
                               slot=self.exit, modifier=pg.KMOD_CTRL,
                               key=pg.K_HOME)]
 
-        levels_w = 350
+        levels_w = 375
         self.levels_widget = ScrollList(self, (self.indent,
                                         user_h + user_font + self.indent * 3,
                                         levels_w,
