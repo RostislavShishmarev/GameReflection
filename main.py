@@ -305,6 +305,9 @@ class GameWindow:
             cur.execute('''UPDATE levels SET time = ? WHERE id = ?''',
                         (str(self.time.minute) + ' ' + str(self.time.second),
                         self.level_id))
+
+        cur.execute('''UPDATE levels SET opened = 'True' WHERE id = ?''',
+                    (self.level_id + 1, ))
         self.parent.db.commit()
 
     def restart(self):
@@ -327,13 +330,15 @@ class MainWindow:
 
         self.db = sqlite3.connect('DataBases/Reflection_db.db3')
         cur = self.db.cursor()
-        levels = cur.execute('''SELECT name, way, score, time
+        levels = cur.execute('''SELECT name, way, score, time, opened
  FROM levels''').fetchall()
-        self.levels = [(lv[0], lv[1:]) for lv in levels]
+        self.levels = [(lv[0], lv[1:4]) for lv in levels if lv[-1]]
         (self.nik, self.victs, self.defs) = cur.execute('''SELECT nik,
  victories, defeats FROM user''').fetchone()
-        self.photo_index = 0
-        self.photos_names = ['User_cat.jpg']
+        self.photos_names = ['User_cat.jpg', 'User_bear.jpg',
+                             'User_dragon.jpg', 'User_phoenix.jpg']
+        self.photo_index = round(len(self.levels) / len(levels) *\
+                                 (len(self.photos_names) - 1))
 
         self.cursor_group = spr.Group()
 
