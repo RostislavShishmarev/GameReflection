@@ -68,6 +68,8 @@ class Platform(AnimatedSprite):
             self.parent.triplex.move(delta_x)
 
     def change_platform_size(self, change=0):
+        if self.crushing:
+            return
         name_list = ["Short_platform.png", "Platform.png", "Long_platform.png"]
         index = self.size_index + change
         if index < 0 or index >= len(name_list):
@@ -81,6 +83,13 @@ class Platform(AnimatedSprite):
         self.rect.y = old_y
         self.mask = pg.mask.from_surface(self.image)
         self.set_dict()
+        # Защита от действия сокровищ во время старта:
+        if self.parent.start:
+            center_x = self.parent.triplex.rect.x +\
+                       self.parent.triplex.rect.w // 2
+            if center_x <= self.rect.x + self.edge or center_x >=\
+                                    self.rect.x + self.w - self.edge:
+                self.parent.triplex.move_to_x(self.rect.x + self.w // 2)
         self.parent.platform_changed_sound.play()
 
     def set_select(self, select, pos=None):
@@ -209,6 +218,9 @@ class Triplex(spr.Sprite):
         min_x += self.parent.platform.rect.w - self.w - ed
         self.rect.x = x if self.parent.platform.rect.x + ed <= x <= min_x\
             else self.rect.x
+
+    def move_to_x(self, x):
+        self.rect.x = x
 
     def set_vx(self, vx):
         self.vx = vx
