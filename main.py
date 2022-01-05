@@ -12,15 +12,17 @@ from math import floor
 from functions import load_image, do_nothing, get_width, str_time,\
     make_tuple_time
 from widgets import Button, TextDisplay, Image, Label, ScrollList,\
-    ResultsTextDisplay
+    ResultsTextDisplay, TabWidget, HorAlign
 from sprites import Platform, Triplex, Border
 from blocks import Block, DeathBlock, ExplodingBlock, ScBlock, BrickedBlock,\
     CrushedBrickedBlock
 
 
 class InfoWindow:
-    def __init__(self):
+    def __init__(self, parent):
         # Задаём атрибуты:
+        self.parent = parent
+        self.play_music = self.parent.play_music
         self.FPS = 30
         self.size = (self.w, self.h) = (1400, 800)
         self.indent = 15
@@ -35,6 +37,7 @@ class InfoWindow:
 
     def run(self):
         pg.init()
+        mix.init()
         # Местные переменные и константы:
         clock = pg.time.Clock()
 
@@ -47,6 +50,11 @@ class InfoWindow:
         pg.mouse.set_visible(False)
         logo = load_image('Reflection_logo.png')
         pg.display.set_icon(logo)
+
+        if self.play_music:
+            mix.music.load('Sounds/main_fone.mp3')
+            mix.music.set_volume(0.1)
+            mix.music.play(-1)
 
         # Создаём спрайты:
         self.cursor = spr.Sprite(self.cursor_group)
@@ -100,6 +108,7 @@ class InfoWindow:
                     but.process_event(event)
                 if event.type == pg.QUIT:
                     self.running = False
+                    mix.music.stop()
                 if event.type == pg.MOUSEMOTION:
                     self.cursor.rect.topleft = event.pos
 
@@ -117,6 +126,7 @@ class InfoWindow:
             clock.tick(self.FPS)
             pg.display.flip()
         pg.quit()
+        mix.quit()
         if self.new_window_after_self is not None:
             self.new_window_after_self.run()
 
@@ -148,6 +158,7 @@ class GameWindow:
         self.score = score
         self.time = make_tuple_time(time)
         self.lifes = lifes
+        self.play_music = self.parent.play_music
 
         self.FPS = 80
         self.size = (self.w, self.h) = (1210, 820)
@@ -210,6 +221,10 @@ class GameWindow:
         pg.time.set_timer(SECOND, 1000)
         pg.mouse.set_visible(False)
         pg.display.set_icon(load_image('Reflection_logo.png'))
+        if self.play_music:
+            mix.music.load('Sounds/play_fone.mp3')
+            mix.music.set_volume(0.1)
+            mix.music.play(-1)
 
         # Создаём звуки:
         self.collide_sound = mix.Sound('Sounds/collide.mp3')
@@ -251,6 +266,7 @@ class GameWindow:
                 self.platform.process_event(event)
                 if event.type == pg.QUIT:
                     self.running = False
+                    mix.music.stop()
                 if event.type == SECOND and not self.start:
                     if not self.pause:
                         self.time += TimeDelta(seconds=1)
@@ -380,6 +396,7 @@ class GameWindow:
             g_over.rect = g_over.image.get_rect()
             g_over.rect.topleft = (self.w // 2 - g_over.rect[2] // 2,
                                    self.h // 2 - g_over.rect[3] // 2)
+            mix.music.stop()
             self.game_over_sound.play()
             self.GameWindow_ended = True
 
@@ -401,6 +418,7 @@ class GameWindow:
         you_win.rect = you_win.image.get_rect()
         you_win.rect.topleft = (self.w // 2 - you_win.rect[2] // 2,
                                 self.h // 2 - you_win.rect[3] // 2)
+        mix.music.stop()
         self.win_sound.play()
         self.game_ended = True
 
@@ -444,8 +462,9 @@ class MainWindow:
         levels = cur.execute('''SELECT name, way, score, time, id, opened
  FROM levels''').fetchall()
         self.levels = [(lv[0], lv[1:5]) for lv in levels if lv[-1]]
-        (self.nik, self.victs, self.defs) = cur.execute('''SELECT nik,
- victories, defeats FROM user''').fetchone()
+        user_data = cur.execute('''SELECT
+ nik, victories, defeats, play_music FROM user''').fetchone()
+        self.nik, self.victs, self.defs, self.play_music = user_data
         self.photos_names = ['User_cat.jpg', 'User_bear.jpg',
                              'User_dragon2.jpg', 'User_phoenix.jpg']
         self.photo_index = floor(len(self.levels) / len(levels) *\
@@ -459,6 +478,7 @@ class MainWindow:
 
     def run(self):
         pg.init()
+        mix.init()
         # Местные переменные и константы:
         clock = pg.time.Clock()
 
@@ -470,6 +490,11 @@ class MainWindow:
         self.screen.blit(fone, (0, 0))
         pg.mouse.set_visible(False)
         pg.display.set_icon(load_image('Reflection_logo.png'))
+
+        if self.play_music:
+            mix.music.load('Sounds/main_fone.mp3')
+            mix.music.set_volume(0.1)
+            mix.music.play(-1)
 
         # Создаём спрайты:
         self.cursor = spr.Sprite(self.cursor_group)
@@ -508,7 +533,7 @@ class MainWindow:
                               slot=self.exit, modifier=pg.KMOD_CTRL,
                               key=pg.K_HOME)]
 
-        levels_w = 375
+        levels_w = 460
         self.levels_widget = ScrollList(self, (self.indent,
                                         user_h + user_font + self.indent * 3,
                                         levels_w,
@@ -543,6 +568,7 @@ class MainWindow:
                 self.savings_widget.process_event(event)
                 if event.type == pg.QUIT:
                     self.running = False
+                    mix.music.stop()
                 if event.type == pg.MOUSEMOTION:
                     self.cursor.rect.topleft = event.pos
 
@@ -560,6 +586,7 @@ class MainWindow:
             clock.tick(self.FPS)
             pg.display.flip()
         pg.quit()
+        mix.quit()
         if self.new_window_after_self is not None:
             self.new_window_after_self.run()
 
