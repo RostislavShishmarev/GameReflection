@@ -188,7 +188,7 @@ class TabWidget(BaseWidget):
         self.titles_h = titles_h
         self.title_font_size = title_font_size
         self.widgets = []
-        x, y = self.x + 10, self.y
+        x, y = self.x + self.bord_rad, self.y
         for i, ttl in enumerate(self.titles_names):
             title_font = pg.font.Font(None, self.title_font_size)
             title = title_font.render(ttl, True, self.main_color)
@@ -212,15 +212,14 @@ class TabWidget(BaseWidget):
         for i, title in enumerate(self.titles_names):
             self.widgets[i][1].render()
             if i == self.selected_index:
-                self.surface = pg.Surface((self.w,
-                                           self.h - self.titles_h +\
-                                           self.rects_w // 2), pg.SRCALPHA, 32)
+                self.surface = pg.Surface(self.get_surface_size(),
+                                          pg.SRCALPHA, 32)
                 self.surface.fill(pg.Color(0, 0, 0, 1))
                 for widget in self.widgets[i][0]:
                     widget.render(screen=self.surface)
                 pg.Surface.blit(screen, self.surface, (self.x,
-                                                       self.y + self.titles_h -\
-                                                       self.rects_w // 2))
+                                                       self.y + self.titles_h\
+                                                       - self.rects_w // 2))
 
     def process_event(self, event, *args, **kwargs):
         for i, title in enumerate(self.titles_names):
@@ -235,10 +234,22 @@ class TabWidget(BaseWidget):
         return self.widgets[index][0]
 
     def set_widgets(self, widgets, index):
-        self.widgets[index][0] = widgets
+        tab_widgets = []
+        for wid in widgets:
+            wid.parent = self
+            tab_widgets.append(wid)
+        self.widgets[index][0] = tab_widgets
 
     def add_widget(self, widget, index):
+        widget.parent = self
         self.widgets[index][0].append(widget)
+
+    def trans_pos(self, pos):
+        return (pos[0] - self.x,
+                pos[1] - self.y - self.titles_h + self.rects_w // 2)
+
+    def get_surface_size(self):
+        return (self.w, self.h - self.titles_h + self.rects_w // 2)
 
 
 class Image(BaseWidget):
