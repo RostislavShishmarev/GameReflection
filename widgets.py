@@ -95,7 +95,7 @@ class Button(BaseWidget):
 
     def process_event(self, event, *args, **kwargs):
         if event.type == pg.MOUSEBUTTONDOWN:
-            if event.pos in self:
+            if event.pos in self and event.button == 1:
                 self.slot(*args, **kwargs)
         if event.type == pg.KEYDOWN and self.key is not None:
             if event.key == self.key:
@@ -118,6 +118,10 @@ class Button(BaseWidget):
 
     def set_slot(self, slot):
         self.function = slot
+
+    def set_text(self, text, text2=None):
+        self.text = self.current_text = text
+        self.text2 = text2 if text2 is not None else text
 
 
 class TextDisplay(BaseWidget):
@@ -158,8 +162,8 @@ class TextDisplay(BaseWidget):
             item_x = self.x + self.w - item.get_width() - self.w // 8
             im = tr.scale(load_image(self.image_name, -1), (5 * self.w // 8,
                                                             item.get_height()))
-            screen.blit(im, (self.x + round(self.w // 8),
-                        self.y + self.h - item.get_height() - 10))
+            screen.blit(im, (self.x + round(self.w // 16),
+                             self.y + self.h - item.get_height() - 10))
         screen.blit(item, (item_x, self.y + self.h - item.get_height() - 5))
 
     def set_item(self, item):
@@ -285,7 +289,7 @@ class Image(BaseWidget):
 
     def process_event(self, event, *args, **kwargs):
         if event.type == pg.MOUSEBUTTONDOWN:
-            if event.pos in self:
+            if event.pos in self and event.button == 1:
                 self.slot(*args, **kwargs)
         if event.type == pg.KEYDOWN and self.key is not None:
             if event.key == self.key:

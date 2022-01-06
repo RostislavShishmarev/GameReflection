@@ -38,8 +38,8 @@ class Block(spr.Sprite):
 
         self.mask = pg.mask.from_surface(self.image)
         self.crush_score = 100
-        classes = [None] * 24 + [Treasure] * 16 + [HealthTreasure] +\
-            [LongMakerTreasure] * 4 + [ShortMakerTreasure] * 4
+        classes = [None] * 48 + [Treasure] * 32 + [HealthTreasure] +\
+            [LongMakerTreasure] * 8 + [ShortMakerTreasure] * 8
         self.treasure_class = choice(classes)
         self.collide_sound = self.parent.collide_sound
 
@@ -95,6 +95,7 @@ class ScBlock(Block):
     def crush(self):
         self.before_crushing -= 1
         if self.before_crushing <= 0:
+            self.treasure_class = None
             super().crush()
 
 
@@ -107,11 +108,13 @@ class BrickedBlock(Block):
         self.crush_score = 50
 
     def crush(self):
+        tr_class, self.treasure_class = self.treasure_class, None
         super().crush()
         block = CrushedBrickedBlock(self.parent, self.rect.x, self.rect.y,
                                     self.w, self.h, self.i, self.j,
                                     *self.groups)
         self.parent.blocks[self.i][self.j] = block
+        self.parent.blocks[self.i][self.j].treasure_class = tr_class
 
 
 class CrushedBrickedBlock(Block):
@@ -131,6 +134,10 @@ class DeathBlock(Block):
         self.treasure_class = DeathTreasure
         self.collide_sound = self.parent.death_collide_sound
 
+    def crush(self):
+        self.treasure_class = DeathTreasure
+        super().crush()
+
 
 class ExplodingBlock(Block):
     def __init__(self, parent, x, y, w, h, i, j, *groups):
@@ -148,12 +155,8 @@ class ExplodingBlock(Block):
         if not only_self:
             for coords in self.get_neighbourhood_coords():
                 i, j = coords
-                if not isinstance(self.parent.blocks[i][j], (DeathBlock,
-                                                             ScBlock)):
-                    self.parent.blocks[i][j].treasure_class =\
-                        self.treasure_class
-                if isinstance(self.parent.blocks[i][j],
-                              ExplodingBlock):
+                self.parent.blocks[i][j].treasure_class = self.treasure_class
+                if isinstance(self.parent.blocks[i][j], ExplodingBlock):
                     self.parent.blocks[i][j].crush(only_self=True)
                 else:
                     self.parent.blocks[i][j].crush()

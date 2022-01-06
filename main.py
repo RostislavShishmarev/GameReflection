@@ -348,6 +348,7 @@ class GameWindow:
         self.new_window_after_self = MainWindow()
 
     def save(self):
+        # Создаём имя будущего сохранения:
         files = os.listdir('DataBases')
         n_savings = len([f for f in files
                          if f.startswith(self.mod_name.split('/')[-1].split(
@@ -355,6 +356,7 @@ class GameWindow:
                          f.split('_')[1].startswith(self.parent.nik)])
         name = self.mod_name.split('_')[0] + '_' + self.parent.nik +\
                str(n_savings + 1) + '.csv'
+        # Создаём сохранение:
         with open(name, mode='w', encoding='utf8', newline='') as f:
             wr = csv.writer(f, delimiter=';', quotechar='"')
             for row in self.blocks:
@@ -366,16 +368,17 @@ class GameWindow:
                         code_name = self.blocks_code_dict[b.__class__.__name__]
                         mod_row.append(code_name)
                 wr.writerow(mod_row)
+        # Запись в БД:
         cur = self.parent.db.cursor()
         time = str(self.time.minute) + ' ' + str(self.time.second)
         saving_time = DateTime.today().strftime('%d-%m-%Y %H:%M:%S')
         cur.execute('''INSERT INTO savings(level_id, model_way, lifes, score,
  time, saving_time) VALUES(?, ?, ?, ?, ?,
- ?)''', (int(self.mod_name.split('/')[-1].split('_')[0][5:]), name,
-         self.lifes, self.score, time, saving_time))
+ ?)''', (self.level_id, name, self.lifes, self.score, time, saving_time))
         self.parent.db.commit()
 
     def begin_die(self):
+        # Разделение смерти нужно для анимации разрушения платформы
         self.all_sprites.remove(self.triplex)
         self.platform.crushing = True
         self.platform_crushed_sound.play()
@@ -385,43 +388,34 @@ class GameWindow:
         if not self.start:
             self.lifes -= 1
         self.start = True
-        if self.lifes <= 0:
-            self.buttons[0].function = self.restart
-            self.buttons[0].text = self.buttons[0].current_text = 'Начать \
-сначала'
-            self.buttons[1].slot = do_nothing
-            self.pause = True
+        if self.lifes <= 0:  # Поражение
+            self.stop_game()
+            # Сообщение о поражении:
             g_over = spr.Sprite(self.all_sprites)
             g_over.image = load_image('game_over.png', -1)
             g_over.rect = g_over.image.get_rect()
             g_over.rect.topleft = (self.w // 2 - g_over.rect[2] // 2,
                                    self.h // 2 - g_over.rect[3] // 2)
-            mix.music.stop()
             self.game_over_sound.play()
-            self.GameWindow_ended = True
-
+            # Запись в БД:
             cur = self.parent.db.cursor()
             cur.execute('''UPDATE user SET defeats = defeats + 1''')
             self.parent.db.commit()
-        else:
+        else:  # Просто отнята жизнь
+            # Пересоздание удалённых спрайтов:
             self.platform = Platform(self, self.all_sprites)
             self.triplex = Triplex(self, self.all_sprites)
 
     def win(self):
-        self.buttons[0].function = self.restart
-        self.buttons[0].text = self.buttons[0].current_text = 'Начать \
-сначала'
-        self.buttons[1].slot = do_nothing
-        self.pause = True
+        self.stop_game()
+        # Сообщение о выигрыше:
         you_win = spr.Sprite(self.all_sprites)
         you_win.image = load_image('You_win.png', -1)
         you_win.rect = you_win.image.get_rect()
         you_win.rect.topleft = (self.w // 2 - you_win.rect[2] // 2,
                                 self.h // 2 - you_win.rect[3] // 2)
-        mix.music.stop()
         self.win_sound.play()
-        self.game_ended = True
-
+        # Запись в БД:
         cur = self.parent.db.cursor()
         cur.execute('''UPDATE user SET victories = victories + 1''')
         old_scr, old_time = cur.execute('''SELECT score, time FROM
@@ -438,6 +432,17 @@ class GameWindow:
         cur.execute('''UPDATE levels SET opened = 'True' WHERE id = ?''',
                     (self.level_id + 1, ))
         self.parent.db.commit()
+
+    def stop_game(self):
+        # Меняем кнопку сохранения на перезапуск:
+        self.buttons[0].set_slot(self.restart)
+        self.buttons[0].set_text('Начать сначала')
+        # Делаем кнопку паузы пустой:
+        self.buttons[1].set_slot(do_nothing)
+        self.buttons[1].set_text('Пауза')
+        self.pause = True
+        self.game_ended = True
+        mix.music.stop()
 
     def restart(self):
         self.exit()
@@ -466,7 +471,7 @@ class MainWindow:
  nik, victories, defeats, play_music FROM user''').fetchone()
         self.nik, self.victs, self.defs, self.play_music = user_data
         self.photos_names = ['User_cat.jpg', 'User_bear.jpg',
-                             'User_dragon2.jpg', 'User_phoenix.jpg']
+                             'User_dragon.jpg', 'User_phoenix.jpg']
         self.photo_index = floor(len(self.levels) / len(levels) *\
                                  (len(self.photos_names) - 0.1))
 
@@ -593,6 +598,7 @@ class MainWindow:
     def update_window(self):
         try:
             cur = self.db.cursor()
+            # Выбираем сохранение по id уровня:
             savings = cur.execute('''SELECT saving_time, model_way, score,
  time, lifes, id FROM savings WHERE level_id =
  ?''', (self.levels_widget.get_selected_item_info()[-1], )).fetchall()
@@ -603,8 +609,10 @@ class MainWindow:
                                              but_image=im,
                                              but_light_image=light_im,
                                              but_slot=self.delete_saving)
-        except TypeError as ex:
+        except TypeError as ex:  # Объект не выбран
             self.savings_widget.set_elements([])
+
+        # Задаём рекорды в таблицу:
         records = self.levels_widget.get_selected_item_info()
         if records is not None:
             score, time = records[1:3]
@@ -612,7 +620,7 @@ class MainWindow:
                 time = (int(time.split()[0]), int(time.split()[1]))
                 self.results.set_records(score, time)
                 return
-        self.results.set_records()
+        self.results.set_records()  # Уровень не выбран или рекордов нет
 
     def exit(self):
         self.running = False
@@ -620,6 +628,7 @@ class MainWindow:
     def delete_saving(self):
         if self.savings_widget.get_selected_item_info() is None:
             return
+        # Удаляемый элемент всегда выделен
         id = self.savings_widget.get_selected_item_info()[-1]
         cur = self.db.cursor()
         model_name = cur.execute('''SELECT model_way FROM savings
@@ -634,15 +643,17 @@ class MainWindow:
 
     def open_gamewindow(self):
         saving = self.savings_widget.get_selected_item_info()
-        if saving is None:
+        if saving is None:  # Сохранение не выделено, проверяем уровни:
             level = self.levels_widget.get_selected_item_info()
             if level is not None:
                 self.exit()
+                # Открытие уровня:
                 self.new_window_after_self = GameWindow(self, level[0])
             return
         model, score, time, lifes = saving[:4]
         time = (int(time.split()[0]), int(time.split()[1]))
         self.exit()
+        # Открытие сохранения:
         self.new_window_after_self = GameWindow(self, model, score,
                                                 time, lifes)
 
