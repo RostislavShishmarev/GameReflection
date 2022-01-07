@@ -21,6 +21,7 @@ class BaseWidget:
                coords[1] in range(self.y, self.y1)
 
     def process_event(self, event, *args, **kwargs):
+        # В args и kwargs передаются аргументы, которые нужно передать слоту
         pass
 
     def set_coords(self, x, y):
@@ -197,9 +198,11 @@ class TabWidget(BaseWidget):
             title_font = pg.font.Font(None, self.title_font_size)
             title = title_font.render(ttl, True, self.main_color)
             w, h = title.get_width() + self.text_indent * 2, self.titles_h
+            color = self.light_main_color if i == self.selected_index\
+                else self.main_color
             self.widgets.append([[], Button(self.parent, (x, y, w, h), ttl,
                                             font_size=self.title_font_size,
-                                            main_color=self.main_color,
+                                            main_color=color,
                                             slot=self.change_selected)])
             x += w + self.rects_w * 2
 
@@ -233,6 +236,10 @@ class TabWidget(BaseWidget):
 
     def change_selected(self, index):
         self.selected_index = index
+        self.widgets[self.selected_index][1].set_color(self.light_main_color)
+        for i in range(len(self.titles_names)):
+            if i != self.selected_index:
+                self.widgets[i][1].set_color(self.main_color)
     
     def get_widgets(self, index):
         return self.widgets[index][0]
