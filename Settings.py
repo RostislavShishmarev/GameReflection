@@ -7,55 +7,10 @@ import sqlite3
 import os
 import sys
 
-from functions import do_nothing, get_width, load_image, str_time, get_max_font_size
-from widgets import Button, Image, Label, BaseWidget, HorAlign, ScrollElement
-from gamewindow import GameWindow
+from functions import get_width, load_image
+from widgets import Button, Image, Label, HorAlign, InputBox
 from infowindow import InfoWindow
 from main import MainWindow
-
-
-
-class InputBox(BaseWidget):
-    def __init__(self, parent, rect, text=''):
-        super().__init__(parent, rect)
-        self.db = sqlite3.connect('DataBases/Reflection_db.db3')
-        self.cur = self.db.cursor()
-        self.font = pg.font.Font(None, 32)
-        self.rect = pg.Rect(rect)
-        self.color = pg.Color(205, 50, 154)
-        self.color_active = pg.Color(251, 160, 227)
-        self.color_inactive = pg.Color(205, 50, 154)
-        self.text = text
-        self.txt_surface = self.font.render(text, True, self.color)
-        self.active = False
-
-    def handle_event(self, event):
-        if event.type == pg.MOUSEBUTTONDOWN:
-            if self.rect.collidepoint(event.pos):
-                self.active = not self.active
-            else:
-                self.active = False
-            self.color = self.color_active if self.active else self.color_inactive
-        if event.type == pg.KEYDOWN:
-            if self.active:
-                if event.key == pg.K_RETURN:
-                    self.text = ''
-                elif event.key == pg.K_BACKSPACE:
-                    self.text = self.text[:-1]
-                else:
-                    if len(self.text) < 24:
-                        self.text += event.unicode
-                self.txt_surface = self.font.render(self.text, True, self.color)
-
-    def change(self):
-        #self.cur.execute("""UPDATE user SET nik = ? WHERE nik = 'User'""", (self.text,))
-        self.text = ''
-        #self.db.commit()
-
-
-    def draw(self, screen):
-        screen.blit(self.txt_surface, (self.rect.x+5, self.rect.y+5))
-        pg.draw.rect(screen, self.color, self.rect, 2)
 
 
 
@@ -65,7 +20,7 @@ class Settings:
         self.db = sqlite3.connect('DataBases/Reflection_db.db3')
         self.cur = self.db.cursor()
         self.FPS = 80
-        self.size = (self.w, self.h) = (1100, 650)
+        self.size = (self.w, self.h) = (900, 550)
         self.cursor_group = spr.Group()
         # Флаги:
         self.running = True
@@ -114,25 +69,24 @@ class Settings:
         self.cursor.image = load_image("cursor.png")
         self.cursor.rect = self.cursor.image.get_rect()
         # Создаём виджеты:
-        self.input_text = InputBox(self, (250, 340, 300, 40), '')#, main_color=pg.Color(205, 50, 154))
-        self.lebels = [Label(self, (350, 400, 100, 100), 'Музыка', main_color=pg.Color(224, 176, 255), font_size=50, alignment=HorAlign.CENTER),
-                       Label(self, (250, 220, 200, 200), 'Введите новый ник:', main_color=pg.Color(148, 0, 211),
-                             font_size=30, alignment=HorAlign.LEFT)]
-        self.buttons = [Image(self, (1020, 570, 70, 70), load_image('Info.png'), bord_color=pg.Color(100, 200, 255),
+        self.input_text = InputBox(self, (450, 240, 300, 40), '', font_size=32)
+        self.lebels = [Label(self, (250, 300, 100, 100), 'Музыка', main_color=pg.Color(224, 176, 255), font_size=50, alignment=HorAlign.CENTER),
+                       Label(self, (150, 160, 200, 200), 'Введите новый ник:', main_color=pg.Color(255, 51, 255),
+                             font_size=40, alignment=HorAlign.LEFT)]
+        self.buttons = [Image(self, (820, 470, 70, 70), load_image('Info.png'), bord_color=pg.Color(100, 200, 255),
                               light_image=load_image('Info_light.png'), slot=self.info),
                         Image(self, (10, 10, 70, 70),
                               load_image('Return.png'),
                               slot=self.return_MainWindow,
                               light_image=load_image('Return_light.png'),
                               bord_color=pg.Color(181, 230, 29)),
-                        Button(self, (760, 10, 330, 70), 'Стереть все результаты', main_color=pg.Color(255, 218, 20), slot=self.clear),
-                        Button(self, (520, 420, 180, 60), 'Включить', main_color=pg.Color(255, 188, 217), text2='Выключить', slot=self.music),
-                        Button(self, (580, 340, 150, 40), 'Заменить', main_color=pg.Color(255, 51, 204), slot=self.input_text.change)]
+                        Button(self, (560, 10, 330, 70), 'Стереть все результаты', main_color=pg.Color(255, 218, 20), slot=self.clear),
+                        Button(self, (420, 320, 180, 60), 'Включить', main_color=pg.Color(255, 188, 217), text2='Выключить', slot=self.music)]
         # Основной цикл игры:
         while self.running:
             # Обработка событий:
             for event in pg.event.get():
-                self.input_text.handle_event(event)
+                self.text = self.input_text.process_event(event)
                 for lb in self.lebels:
                     lb.process_event(event)
                 for but in self.buttons:
@@ -147,7 +101,7 @@ class Settings:
                 lbl.render()
             for bt in self.buttons:
                 bt.render()
-            self.input_text.draw(self.screen)
+            self.input_text.render()
             if pg.mouse.get_focused():
                 self.cursor_group.draw(self.screen)
             # Обновление экрана:

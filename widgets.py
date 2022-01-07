@@ -1,6 +1,7 @@
 import pygame as pg
 import pygame.draw as dr
 import pygame.transform as tr
+import sqlite3
 
 from functions import do_nothing, get_width, load_image, str_time,\
     get_max_font_size
@@ -49,6 +50,47 @@ class HorAlign:
 
 class ElementDeletionAtCycle(Exception):
     pass
+
+
+class InputBox(BaseWidget):
+    def __init__(self, parent, rect, text='', font_size=40, color_active=pg.Color(251, 160, 227), color_inactive=pg.Color(255, 0, 255)):
+        super().__init__(parent, rect)
+        self.db = sqlite3.connect('DataBases/Reflection_db.db3')
+        self.cur = self.db.cursor()
+        self.font = pg.font.Font(None, font_size)
+        self.rect = pg.Rect(rect)
+        self.color = color_inactive
+        self.color_active = color_active
+        self.color_inactive = color_inactive
+        self.text = text
+        self.txt_surface = self.font.render(text, True, self.color)
+        self.active = False
+
+    def process_event(self, event, *args, **kwargs):
+        if event.type == pg.MOUSEBUTTONDOWN:
+            if self.rect.collidepoint(event.pos):
+                self.active = not self.active
+            else:
+                self.active = False
+            self.color = self.color_active if self.active else self.color_inactive
+        if event.type == pg.KEYDOWN:
+            if self.active:
+                if event.key == pg.K_RETURN:
+                    self.cur.execute("""UPDATE user SET nik = ?""", (self.text,))
+                    self.db.commit()
+                    self.text = ''
+                elif event.key == pg.K_BACKSPACE:
+                    self.text = self.text[:-1]
+                else:
+                    if len(self.text) < 24:
+                        self.text += event.unicode
+                self.txt_surface = self.font.render(self.text, True, self.color)
+        return self.text
+
+    def render(self, screen=None):
+        screen = screen if screen is not None else self.parent.screen
+        screen.blit(self.txt_surface, (self.rect.x+5, self.rect.y+5))
+        pg.draw.rect(screen, self.color, self.rect, 2)
 
 
 class Button(BaseWidget):
