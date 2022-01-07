@@ -30,6 +30,10 @@ def get_width(surface, height):
     return round(surface.get_size()[0] * (height / surface.get_size()[1]))
 
 
+def get_height(surface, width):
+    return round(surface.get_size()[1] * (width / surface.get_size()[0]))
+
+
 def get_max_font_size(text, w, start_font=200):
     while True:
         text_font = pg.font.Font(None, start_font)

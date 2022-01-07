@@ -1,6 +1,7 @@
 import pygame as pg
 import pygame.draw as dr
 import pygame.transform as tr
+import sqlite3
 
 from functions import do_nothing, get_width, load_image, str_time,\
     get_max_font_size
@@ -123,6 +124,53 @@ class Button(BaseWidget):
     def set_text(self, text, text2=None):
         self.text = self.current_text = text
         self.text2 = text2 if text2 is not None else text
+
+
+class InputBox(BaseWidget):
+    def __init__(self, parent, rect, text='', font_size=40,
+                 color_active=pg.Color(251, 160, 227),
+                 color_inactive=pg.Color(255, 0, 255),
+                 back_color=pg.Color(0, 0, 0)):
+        super().__init__(parent, rect)
+        self.db = sqlite3.connect('DataBases/Reflection_db.db3')
+        self.cur = self.db.cursor()
+        self.font = pg.font.Font(None, font_size)
+        self.rect = pg.Rect(rect)
+        self.color = color_inactive
+        self.color_active = color_active
+        self.color_inactive = color_inactive
+        self.back_color = back_color
+        self.text = text
+        self.txt_surface = self.font.render(text, True, self.color)
+        self.active = False
+        self.indent = 5
+
+    def process_event(self, event, *args, **kwargs):
+        if event.type == pg.MOUSEBUTTONDOWN:
+            if self.rect.collidepoint(event.pos):
+                self.active = not self.active
+            else:
+                self.active = False
+            self.color = self.color_active if self.active\
+                else self.color_inactive
+        if event.type == pg.KEYDOWN:
+            if self.active:
+                if event.key == pg.K_BACKSPACE:
+                    self.text = self.text[:-1]
+                else:
+                    if len(self.text) < 24:
+                        self.text += event.unicode
+                txt = self.font.render(self.text, True, self.color)
+                if txt.get_width() < self.w - self.indent * 2:
+                    self.txt_surface = txt
+        return self.text
+
+    def render(self, screen=None):
+        screen = screen if screen is not None else self.parent.screen
+        pg.draw.rect(screen, self.back_color, self.rect)
+        pg.draw.rect(screen, self.color, self.rect, 2)
+        screen.blit(self.txt_surface, (self.rect.x + self.indent,
+                                       self.rect.y + self.indent))
 
 
 class TextDisplay(BaseWidget):

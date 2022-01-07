@@ -10,9 +10,9 @@ from datetime import datetime as DateTime
 from datetime import timedelta as TimeDelta
 from math import floor
 from functions import load_image, do_nothing, get_width, str_time,\
-    make_tuple_time
+    make_tuple_time, get_height
 from widgets import Button, TextDisplay, Image, Label, ScrollList,\
-    ResultsTextDisplay, TabWidget, HorAlign
+    ResultsTextDisplay, TabWidget, HorAlign, InputBox
 from sprites import Platform, Triplex, Border
 from blocks import Block, DeathBlock, ExplodingBlock, ScBlock, BrickedBlock,\
     CrushedBrickedBlock
@@ -108,7 +108,6 @@ class InfoWindow:
                     but.process_event(event)
                 if event.type == pg.QUIT:
                     self.running = False
-                    mix.music.stop()
                 if event.type == pg.MOUSEMOTION:
                     self.cursor.rect.topleft = event.pos
 
@@ -132,6 +131,159 @@ class InfoWindow:
 
     def exit(self):
         self.running = False
+        self.new_window_after_self = Settings(self)
+
+
+class Settings:
+    def __init__(self, parent):
+        # Задаём атрибуты:
+        self.parent = parent
+        self.size = (self.w, self.h) = (600, 500)
+        self.db = sqlite3.connect('DataBases/Reflection_db.db3')
+        self.FPS = 60
+        self.cursor_group = spr.Group()
+        self.new_window_after_self = None
+        self.play_music = self.parent.play_music
+        self.indent = 10
+        # Флаги:
+        self.running = True
+    
+    def run(self):
+        pg.init()
+        # Местные переменные и константы:
+        clock = pg.time.Clock()
+        # Задаём параметры окну:
+        pg.display.set_caption('Настройки')
+        self.screen = pg.display.set_mode(self.size)
+        im = load_image('Fone.png')
+        fone = tr.scale(im, (get_width(im, self.h * 1.5), self.h * 1.5))
+        self.screen.blit(fone, (0, 0))
+        pg.mouse.set_visible(False)
+        pg.display.set_icon(load_image('Reflection_logo.png'))
+
+        if self.play_music:
+            mix.music.load('Sounds/main_fone.mp3')
+            mix.music.set_volume(0.1)
+            mix.music.play(-1)
+
+        # Создаём спрайты:
+        self.cursor = spr.Sprite(self.cursor_group)
+        self.cursor.image = load_image("cursor.png")
+        self.cursor.rect = self.cursor.image.get_rect()
+        # Создаём виджеты:
+        ret_h = 70
+        but_h = 40
+        labels_font_size = 40
+        self.input_text = InputBox(self, (self.indent,
+                                          round(ret_h * 1.2) + 3 *\
+                                          self.indent + labels_font_size,
+                                          self.w // 2, labels_font_size),
+                                   '', font_size=round(0.8 * labels_font_size))
+        self.widgets = [Image(self, (self.indent, self.indent,
+                                    round(ret_h * 1.2), round(ret_h * 1.2)),
+                              load_image('Settings.png', -1)),
+                        Label(self, (self.indent * 2 + round(ret_h * 1.2),
+                                     self.indent,
+                                     self.w // 2, round(ret_h * 1.2)),
+                              'Настройки', font_size=ret_h,
+                              main_color=pg.Color(12, 179, 18),
+                              back_color=pg.Color(0, 0, 0),
+                              border=True, alignment=HorAlign.CENTER)]
+        text = 'Включить музыку' if not self.play_music\
+            else 'Выключить музыку'
+        text2 = 'Выключить музыку' if not self.play_music\
+            else 'Включить музыку'
+        self.buttons = [Image(self, (self.w - self.indent - ret_h,
+                                     self.h - self.indent - ret_h,
+                                     ret_h, ret_h), load_image('Info.png'),
+                              bord_color=pg.Color(100, 200, 255),
+                              light_image=load_image('Info_light.png'),
+                              slot=self.info),
+                        Image(self, (self.indent,
+                                     self.h - self.indent - ret_h,
+                                     ret_h, ret_h),
+                              load_image('Return.png'),
+                              slot=self.open_mainwindow,
+                              light_image=load_image('Return_light.png'),
+                              bord_color=pg.Color(181, 230, 29)),
+                        Button(self, (self.indent, round(ret_h * 1.2) + 4 *\
+                                          self.indent + labels_font_size * 2,
+                                      self.w // 3, but_h), 'Сменить ник',
+                               slot=self.change_nik,
+                               main_color=pg.Color(255, 51, 255)),
+                        Button(self, (self.indent, round(ret_h * 1.2) + 7 *\
+                                          self.indent + labels_font_size * 2 +\
+                                      but_h, round(self.w // 1.5), but_h),
+                               'Стереть все результаты',
+                               main_color=pg.Color(255, 218, 20),
+                               slot=self.clear),
+                        Button(self, (self.indent, round(ret_h * 1.2) + 10 *\
+                                          self.indent + labels_font_size * 2 +\
+                                      but_h * 2, round(self.w // 1.5), but_h),
+                               text,
+                               main_color=pg.Color(255, 188, 217),
+                               text2=text2, slot=self.change_music)]
+        # Основной цикл игры:
+        while self.running:
+            # Обработка событий:
+            for event in pg.event.get():
+                self.text = self.input_text.process_event(event)
+                for but in self.buttons:
+                    but.process_event(event)
+                if event.type == pg.QUIT:
+                    self.running = False
+                if event.type == pg.MOUSEMOTION:
+                    self.cursor.rect.topleft = event.pos
+            # Отрисовка элементов:
+            self.screen.blit(fone, (0, 0))
+            for lbl in self.widgets:
+                lbl.render()
+            for bt in self.buttons:
+                bt.render()
+            self.input_text.render()
+            if pg.mouse.get_focused():
+                self.cursor_group.draw(self.screen)
+            # Обновление экрана:
+            clock.tick(self.FPS)
+            pg.display.flip()
+        pg.quit()
+        if self.new_window_after_self is not None:
+            self.new_window_after_self.run()
+
+    def info(self):
+        self.running = False
+        self.new_window_after_self = InfoWindow(self)
+
+    def open_mainwindow(self):
+        self.running = False
+        self.new_window_after_self = MainWindow()
+
+    def change_music(self):
+        self.play_music = not self.play_music
+        cur = self.db.cursor()
+        cur.execute('''UPDATE user SET play_music = ?''', (self.play_music, ))
+        self.db.commit()
+        if self.play_music:
+            mix.music.load('Sounds/main_fone.mp3')
+            mix.music.set_volume(0.1)
+            mix.music.play(-1)
+        else:
+            mix.music.stop()
+
+    def change_nik(self):
+        cur = self.db.cursor()
+        cur.execute("""UPDATE user SET nik = ?""", (self.input_text.text,))
+        self.db.commit()
+        self.input_text.text = ''
+
+    def clear(self):
+        cur = self.db.cursor()
+        cur.execute("""UPDATE user SET victories = 0, defeats = 0""")
+        cur.execute("""DELETE FROM savings""")
+        cur.execute("""UPDATE levels SET score = NULL, time = NULL,
+ opened = NULL""")
+        cur.execute("""UPDATE levels SET opened = 'True' WHERE id = 1""")
+        self.db.commit()
 
 
 class GameWindow:
@@ -527,7 +679,8 @@ class MainWindow:
                               light_image=load_image('Settings_light.png', -1),
                               slot=self.open_settings, modifier=pg.KMOD_ALT,
                               key=pg.K_s),
-                        Button(self, (self.w - 2 * self.indent - play_h - play_w,
+                        Button(self, (self.w - 2 * self.indent - play_h -\
+                                      play_w,
                                       self.h - self.indent - play_h, play_w,
                                       play_h), 'Играть',
                                slot=self.open_gamewindow, font_size=60),
@@ -574,7 +727,6 @@ class MainWindow:
                 self.savings_widget.process_event(event)
                 if event.type == pg.QUIT:
                     self.running = False
-                    mix.music.stop()
                 if event.type == pg.MOUSEMOTION:
                     self.cursor.rect.topleft = event.pos
 
@@ -640,7 +792,8 @@ class MainWindow:
         self.update_window()
 
     def open_settings(self):
-        print('Opened')
+        self.exit()
+        self.new_window_after_self = Settings(self)
 
     def open_gamewindow(self):
         saving = self.savings_widget.get_selected_item_info()
@@ -654,6 +807,7 @@ class MainWindow:
         model, score, time, lifes = saving[:4]
         time = (int(time.split()[0]), int(time.split()[1]))
         self.exit()
+        mix.music.stop()
         # Открытие сохранения:
         self.new_window_after_self = GameWindow(self, model, score,
                                                 time, lifes)
