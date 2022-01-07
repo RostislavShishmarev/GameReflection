@@ -136,7 +136,8 @@ class ExplodingBlock(Block):
         if not only_self:
             for coords in self.get_neighbourhood_coords():
                 i, j = coords
-                if not isinstance(self.parent.blocks[i][j], DeathBlock):
+                if not isinstance(self.parent.blocks[i][j], (DeathBlock,
+                                                             ScBlock)):
                     self.parent.blocks[i][j].treasure_class =\
                         self.treasure_class
                 if isinstance(self.parent.blocks[i][j],

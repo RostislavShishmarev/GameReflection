@@ -9,10 +9,10 @@ from widgets import TabWidget, TextDisplay, Image, Label, HorAlign
 class InfoWindow:
     def __init__(self):
         # Задаём атрибуты:
-        self.FPS = 60
+        self.FPS = 30
         self.size = (self.w, self.h) = (1400, 800)
         self.indent = 15
-        self.up_indent = 60
+        self.up_indent = 80
         self.rules_font = 30
 
         self.cursor_group = spr.Group()
@@ -33,7 +33,8 @@ class InfoWindow:
         fone = tr.scale(im, (get_width(im, self.h), self.h))
         self.screen.blit(fone, (0, 0))
         pg.mouse.set_visible(False)
-        pg.display.set_icon(load_image('Reflection_logo.png'))
+        logo = load_image('Reflection_logo.png')
+        pg.display.set_icon(logo)
 
         # Создаём спрайты:
         self.cursor = spr.Sprite(self.cursor_group)
@@ -41,10 +42,17 @@ class InfoWindow:
         self.cursor.rect = self.cursor.image.get_rect()
 
         # Создаём виджеты:
-        self.labels = [Label(self, (self.indent, self.indent,
-                                    400, self.up_indent), 'Правила игры',
-                             font_size=60, border=True,
-                             alignment=HorAlign.CENTER)]
+        logo_w = get_width(logo, self.up_indent)
+        logo_color = pg.Color(0, 162, 232)
+        self.logo_widgets = [Image(self, (self.indent, self.indent,
+                                          logo_w, self.up_indent),
+                                   logo, bord_color=logo_color),
+                             Label(self, (self.indent * 2 + logo_w,
+                                          self.indent, 400, self.up_indent),
+                                   'Правила игры',
+                                    font_size=60,
+                                    alignment=HorAlign.LEFT,
+                                    main_color=logo_color)]
         self.buttons = [Image(self, (self.w - self.indent - self.up_indent,
                                      self.indent,
                                      self.up_indent, self.up_indent),
@@ -59,14 +67,17 @@ class InfoWindow:
                                            self.h - self.indent * 3 -\
                                            self.up_indent),
                                     ['Основные правила', 'Блоки', 'Сокровища'])
-        items_y = self.indent
-        text = '     Цель игры - сбить триплексом все блоки на поле \
-(кроме скандиевых) и не дать триплексу упасть.'
-        h = self.rules_font
-        self.tab_widget.add_widget(Label(self, (self.indent, items_y,
-                                                self.w - 4 * self.indent, h),
-                                         text,
-                                         font_size=self.rules_font), 0)
+        rules_w = self.tab_widget.get_surface_size()[0] - 2 * self.indent
+        rules_h = self.tab_widget.get_surface_size()[1] - 2 * self.indent
+        self.tab_widget.add_widget(Image(self, (self.indent, self.indent,
+                                                rules_w, rules_h),
+                                         load_image('Main_rules.png')), 0)
+        self.tab_widget.add_widget(Image(self, (self.indent, self.indent,
+                                                rules_w, rules_h),
+                                         load_image('Blocks_rules.png')), 1)
+        self.tab_widget.add_widget(Image(self, (self.indent, self.indent,
+                                                rules_w, rules_h),
+                                         load_image('Treasures_rules.png')), 2)
 
         # Основной цикл игры:
         while self.running:
@@ -85,7 +96,7 @@ class InfoWindow:
             self.tab_widget.render()
             for but in self.buttons:
                 but.render()
-            for lab in self.labels:
+            for lab in self.logo_widgets:
                 lab.render()
             if pg.mouse.get_focused():
                 self.cursor_group.draw(self.screen)
