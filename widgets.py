@@ -85,7 +85,6 @@ class InputBox(BaseWidget):
                     if len(self.text) < 24:
                         self.text += event.unicode
                 self.txt_surface = self.font.render(self.text, True, self.color)
-        return self.text
 
     def render(self, screen=None):
         screen = screen if screen is not None else self.parent.screen

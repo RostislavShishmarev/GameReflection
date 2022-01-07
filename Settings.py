@@ -86,7 +86,7 @@ class Settings:
         while self.running:
             # Обработка событий:
             for event in pg.event.get():
-                self.text = self.input_text.process_event(event)
+                self.input_text.process_event(event)
                 for lb in self.lebels:
                     lb.process_event(event)
                 for but in self.buttons:
