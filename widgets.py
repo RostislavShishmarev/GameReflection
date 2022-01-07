@@ -47,7 +47,7 @@ class HorAlign:
     CENTER = 'center'
 
 
-class ElementDeletionAtCycle(Exception):
+class ElementFunctionAtCycle(Exception):
     pass
 
 
@@ -435,7 +435,7 @@ class ScrollList(BaseWidget):
             try:
                 self.elements[self.up_index + i].process_event(event, *args,
                                                                **kwargs)
-            except ElementDeletionAtCycle as ex:
+            except ElementFunctionAtCycle as ex:
                 break
 
     def change_up(self, delta):
@@ -461,11 +461,15 @@ class ScrollList(BaseWidget):
         self.selected_index = None if elements == [] else self.selected_index
 
     def get_selected_item_info(self):
-        if self.selected_index is None:
+        if self.get_selected_item_index() is None:
             return
-        return self.elements[self.selected_index].get_info()
+        return self.elements[self.get_selected_item_index()].get_info()
 
     def get_selected_item_index(self):
+        # Защита от удаления элементов:
+        if self.selected_index is not None and\
+                        self.selected_index >= len(self.elements):
+            self.selected_index = None
         return self.selected_index
 
 
@@ -571,7 +575,7 @@ class ScrollElement(BaseWidget):
             if self.trans_pos(self.parent.trans_pos(event.pos)) in\
                     self.button and event.button == 1:
                 self.button.slot()
-                raise ElementDeletionAtCycle
+                raise ElementFunctionAtCycle
 
 
 class ResultsTextDisplay(BaseWidget):

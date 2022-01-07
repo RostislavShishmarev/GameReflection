@@ -415,6 +415,7 @@ class GameWindow:
         you_win.rect.topleft = (self.w // 2 - you_win.rect[2] // 2,
                                 self.h // 2 - you_win.rect[3] // 2)
         self.win_sound.play()
+        self.score *= self.lifes
         # Запись в БД:
         cur = self.parent.db.cursor()
         cur.execute('''UPDATE user SET victories = victories + 1''')
