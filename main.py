@@ -372,7 +372,7 @@ class GameWindow:
         self.cursor_group = spr.Group()
         self.borders = spr.Group()
         self.blocks_group = spr.Group()
-        self.treasures_group = spr.Group()
+        self.temporary_group = spr.Group()
 
         # Открываем модель расположения блоков:
         with open(self.mod_name, encoding='utf8') as model:
@@ -477,7 +477,7 @@ class GameWindow:
                 self.displays[i].set_item(el)
             if not self.pause:
                 self.blocks_group.update()
-                self.treasures_group.update()
+                self.temporary_group.update()
             clock.tick(self.FPS)
             pg.display.flip()
 
@@ -537,11 +537,11 @@ class GameWindow:
             for row in self.blocks:
                 mod_row = []
                 for b in row:
-                    if b is None:
-                        mod_row.append('nothing')
-                    else:
+                    if b is not None and not b.crushing:
                         code_name = self.blocks_code_dict[b.__class__.__name__]
                         mod_row.append(code_name)
+                    else:
+                        mod_row.append('nothing')
                 wr.writerow(mod_row)
         # Запись в БД:
         cur = self.parent.db.cursor()

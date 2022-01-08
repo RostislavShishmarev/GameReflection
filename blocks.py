@@ -35,6 +35,7 @@ class Block(spr.Sprite):
                                     self.hor_bord_group)]
 
         self.crush_self = False
+        self.crushing = False
 
         self.mask = pg.mask.from_surface(self.image)
         self.crush_score = 100
@@ -53,7 +54,7 @@ class Block(spr.Sprite):
         if self.treasure_class is not None:
             self.treasure_class(self.parent, self.rect.x, self.rect.y,
                                 self.parent.all_sprites,
-                                self.parent.treasures_group)
+                                self.parent.temporary_group)
 
     def collide_triplex(self):
         self.crush_self = False
@@ -148,7 +149,6 @@ class ExplodingBlock(Block):
         self.frames = [self.image] + self.cut_frames(
             'Exploding_block_crushing_sprites.png', 6, 8)
         self.crush_score = 50
-        self.crushing = False
         self.collide_sound = self.parent.crush_sound
 
     def crush(self, only_self=False):
@@ -168,7 +168,7 @@ class ExplodingBlock(Block):
         if self.treasure_class is not None:
             self.treasure_class(self.parent, self.rect.x, self.rect.y,
                                 self.parent.all_sprites,
-                                self.parent.treasures_group)
+                                self.parent.temporary_group)
 
     def update(self):
         if self.crushing:

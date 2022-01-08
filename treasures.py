@@ -27,7 +27,7 @@ class Treasure(spr.Sprite):
 
     def delete(self):
         self.parent.all_sprites.remove(self)
-        self.parent.treasures_group.remove(self)
+        self.parent.temporary_group.remove(self)
 
     def effect(self):
         self.parent.score += 120
