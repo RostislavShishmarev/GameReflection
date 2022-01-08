@@ -172,6 +172,12 @@ class InputBox(BaseWidget):
         screen.blit(self.txt_surface, (self.rect.x + self.indent,
                                        self.rect.y + self.indent))
 
+    def get_text(self):
+        return self.text
+
+    def set_text(self, text):
+        self.text = text
+
 
 class TextDisplay(BaseWidget):
     def __init__(self, parent, rect, title, text_item,

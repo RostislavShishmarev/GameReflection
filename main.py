@@ -286,9 +286,9 @@ class Settings:
 
     def change_nik(self):
         cur = self.db.cursor()
-        cur.execute("""UPDATE user SET nik = ?""", (self.input_text.text,))
+        cur.execute("""UPDATE user SET nik = ?""",
+                    (self.input_text.get_text(),))
         self.db.commit()
-        self.input_text.text = ''
 
     def ask_about_clear(self):
         self.clear_verification = True
