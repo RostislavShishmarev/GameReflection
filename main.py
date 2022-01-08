@@ -554,9 +554,10 @@ class GameWindow:
 
     def begin_die(self):
         # Разделение смерти нужно для анимации разрушения платформы
-        self.all_sprites.remove(self.triplex)
-        self.platform.crushing = True
-        self.platform_crushed_sound.play()
+        if not self.platform.crushing:
+            self.all_sprites.remove(self.triplex)
+            self.platform.crushing = True
+            self.platform_crushed_sound.play()
 
     def end_die(self):
         self.all_sprites.remove(self.platform)

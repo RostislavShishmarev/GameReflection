@@ -641,7 +641,7 @@ class ScrollElement(BaseWidget):
 
 class ResultsTextDisplay(BaseWidget):
     def __init__(self, parent, rect, score=0, time=(0, 0), victories=0,
-                 defeats=0, item_font_size=25, title_font_size=30,
+                 defeats=0, item_font_size=22, title_font_size=30,
                  result_font_size=60,
                  main_color=pg.Color(239, 242, 46),
                  back_color=pg.Color(0, 0, 0)):
