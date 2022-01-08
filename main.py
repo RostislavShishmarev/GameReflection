@@ -1,5 +1,4 @@
 import pygame as pg
-import pygame.transform as tr
 import pygame.sprite as spr
 import pygame.mixer as mix
 import sqlite3
@@ -9,8 +8,8 @@ import os
 from datetime import datetime as DateTime
 from datetime import timedelta as TimeDelta
 from math import floor
-from functions import load_image, do_nothing, get_width, str_time,\
-    make_tuple_time, get_height
+from functions import load_image, do_nothing, get_width,\
+    make_tuple_time, get_max_font_size, get_fone
 from widgets import Button, TextDisplay, Image, Label, ScrollList,\
     ResultsTextDisplay, TabWidget, HorAlign, InputBox
 from sprites import Platform, Triplex, Border
@@ -45,7 +44,7 @@ class InfoWindow:
         pg.display.set_caption('Отражение: правила')
         self.screen = pg.display.set_mode(self.size)
         im = load_image('Fone.png')
-        fone = tr.scale(im, (get_width(im, self.h), self.h))
+        fone = get_fone(im, self.w, self.h)
         self.screen.blit(fone, (0, 0))
         pg.mouse.set_visible(False)
         logo = load_image('Reflection_logo.png')
@@ -147,6 +146,7 @@ class Settings:
         self.indent = 10
         # Флаги:
         self.running = True
+        self.clear_verification = False
     
     def run(self):
         pg.init()
@@ -156,7 +156,7 @@ class Settings:
         pg.display.set_caption('Настройки')
         self.screen = pg.display.set_mode(self.size)
         im = load_image('Fone.png')
-        fone = tr.scale(im, (get_width(im, self.h * 1.5), self.h * 1.5))
+        fone = get_fone(im, self.w, self.h)
         self.screen.blit(fone, (0, 0))
         pg.mouse.set_visible(False)
         pg.display.set_icon(load_image('Reflection_logo.png'))
@@ -205,7 +205,8 @@ class Settings:
                               load_image('Return.png'),
                               slot=self.open_mainwindow,
                               light_image=load_image('Return_light.png'),
-                              bord_color=pg.Color(181, 230, 29)),
+                              bord_color=pg.Color(181, 230, 29),
+                              key=pg.K_HOME, modifier=pg.KMOD_CTRL),
                         Button(self, (self.indent, round(ret_h * 1.2) + 4 *\
                                           self.indent + labels_font_size * 2,
                                       self.w // 3, but_h), 'Сменить ник',
@@ -216,13 +217,24 @@ class Settings:
                                       but_h, round(self.w // 1.5), but_h),
                                'Стереть все результаты',
                                main_color=pg.Color(255, 218, 20),
-                               slot=self.clear),
+                               slot=self.ask_about_clear),
                         Button(self, (self.indent, round(ret_h * 1.2) + 10 *\
                                           self.indent + labels_font_size * 2 +\
                                       but_h * 2, round(self.w // 1.5), but_h),
                                text,
                                main_color=pg.Color(255, 188, 217),
                                text2=text2, slot=self.change_music)]
+        self.verify_clear_but = Button(self, (self.indent * 2 +\
+                                              round(self.w // 1.5),
+                                              round(ret_h * 1.2) + 7 *\
+                                              self.indent + labels_font_size\
+                                              * 2 + but_h, round(self.w // 4),
+                                              but_h),
+                                        'Подтвердить',
+                                         main_color=pg.Color(255, 218, 20),
+                                        slot=self.clear,
+                                       font_size=round(labels_font_size //\
+                                                       1.5))
         # Основной цикл игры:
         while self.running:
             # Обработка событий:
@@ -230,17 +242,19 @@ class Settings:
                 self.text = self.input_text.process_event(event)
                 for but in self.buttons:
                     but.process_event(event)
+                if self.clear_verification:
+                    self.verify_clear_but.process_event(event)
                 if event.type == pg.QUIT:
                     self.running = False
                 if event.type == pg.MOUSEMOTION:
                     self.cursor.rect.topleft = event.pos
             # Отрисовка элементов:
             self.screen.blit(fone, (0, 0))
-            for lbl in self.widgets:
-                lbl.render()
-            for bt in self.buttons:
-                bt.render()
+            for widget in self.widgets + self.buttons:
+                widget.render()
             self.input_text.render()
+            if self.clear_verification:
+                self.verify_clear_but.render()
             if pg.mouse.get_focused():
                 self.cursor_group.draw(self.screen)
             # Обновление экрана:
@@ -276,9 +290,16 @@ class Settings:
         self.db.commit()
         self.input_text.text = ''
 
+    def ask_about_clear(self):
+        self.clear_verification = True
+
     def clear(self):
+        self.clear_verification = False
         cur = self.db.cursor()
         cur.execute("""UPDATE user SET victories = 0, defeats = 0""")
+        sav_names = cur.execute('''SELECT model_way FROM savings''')
+        for name in sav_names:
+            os.remove(name[0])
         cur.execute("""DELETE FROM savings""")
         cur.execute("""UPDATE levels SET score = NULL, time = NULL,
  opened = NULL""")
@@ -368,7 +389,7 @@ class GameWindow:
         pg.display.set_caption('Отражение')
         self.screen = pg.display.set_mode(self.size)
         im = load_image('Fone.png')
-        fone = tr.scale(im, (get_width(im, self.h), self.h))
+        fone = get_fone(im, self.w, self.h)
         self.screen.blit(fone, (0, 0))
         pg.time.set_timer(SECOND, 1000)
         pg.mouse.set_visible(False)
@@ -501,12 +522,14 @@ class GameWindow:
 
     def save(self):
         # Создаём имя будущего сохранения:
+        cur = self.parent.db.cursor()
+        login = cur.execute('''SELECT login FROM user''').fetchone()[0]
         files = os.listdir('DataBases')
         n_savings = len([f for f in files
                          if f.startswith(self.mod_name.split('/')[-1].split(
                 '_')[0]) and
-                         f.split('_')[1].startswith(self.parent.nik)])
-        name = self.mod_name.split('_')[0] + '_' + self.parent.nik +\
+                         f.split('_')[1].startswith(login)])
+        name = self.mod_name.split('_')[0] + '_' + login +\
                str(n_savings + 1) + '.csv'
         # Создаём сохранение:
         with open(name, mode='w', encoding='utf8', newline='') as f:
@@ -644,7 +667,7 @@ class MainWindow:
         pg.display.set_caption('Отражение')
         self.screen = pg.display.set_mode(self.size)
         im = load_image('Fone.png')
-        fone = tr.scale(im, (get_width(im, self.h), self.h))
+        fone = get_fone(im, self.w, self.h)
         self.screen.blit(fone, (0, 0))
         pg.mouse.set_visible(False)
         pg.display.set_icon(load_image('Reflection_logo.png'))
@@ -668,8 +691,16 @@ class MainWindow:
                                 photo, bord_color=pg.Color(35, 81, 247)),
                              Label(self, (self.indent,
                                           self.indent + user_h,
-                                          2 * user_h, user_font),
-                                self.nik, font_size=user_font)]
+                                          user_h, user_font),
+                                self.nik, font_size=user_font,
+                                   border=True,
+                                   back_color=pg.Color(0, 0, 0),
+                                   alignment=HorAlign.CENTER)]
+        lab = self.user_widgets[1]
+        self.user_widgets[1].set_font_size(get_max_font_size(self.nik,
+                                                             user_h - 2 *\
+                                                             lab.indent,
+                                                             user_font))
         but_h = 90
         play_h = 70
         play_w = 200
@@ -694,7 +725,8 @@ class MainWindow:
 
         levels_w = 460
         self.levels_widget = ScrollList(self, (self.indent,
-                                        user_h + user_font + self.indent * 3,
+                                        user_h + user_font +\
+                                               self.indent * 3,
                                         levels_w,
                                         self.h - user_h - user_font -\
                                         self.indent * 4), 'Уровни',
@@ -706,8 +738,9 @@ class MainWindow:
                                                 self.indent * 3,
                                                 self.w - self.indent * 3 -\
                                                 levels_w, self.h - user_h -\
-                                                user_font - self.indent *\
-                                                6 - play_h), 'Сохранения')
+                                                user_font -\
+                                                self.indent *  6 - play_h),
+                                         'Сохранения')
 
         res_w = (self.w - self.indent * 4 - levels_w - but_h) // 2
         self.results = ResultsTextDisplay(self, (self.indent * 2 +\

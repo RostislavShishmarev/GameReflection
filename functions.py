@@ -1,4 +1,5 @@
 import pygame as pg
+import pygame.transform as tr
 import os
 
 from datetime import datetime as DateTime
@@ -32,6 +33,15 @@ def get_width(surface, height):
 
 def get_height(surface, width):
     return round(surface.get_size()[1] * (width / surface.get_size()[0]))
+
+
+def get_fone(fone_image, window_width, window_height, coef=1.01):
+    w, h = fone_image.get_width(), fone_image.get_height()
+    while True:
+        if round(w) >= window_width and round(h) >= window_height:
+            return tr.scale(fone_image, (round(w), round(h)))
+        w *= coef
+        h *= coef
 
 
 def get_max_font_size(text, w, start_font=200):
