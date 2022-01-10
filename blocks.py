@@ -21,14 +21,14 @@ class Block(spr.Sprite):
         self.hor_bord_group = spr.Group()
         self.borders = [BlockBorder(self, x, y, 1, self.h, Place.LEFT,
                                     self.parent.all_sprites,
-                                        self.ver_bord_group),
+                                    self.ver_bord_group),
                         BlockBorder(self, x + self.w - 1, y, 1, self.h,
                                     Place.RIGHT,
                                     self.parent.all_sprites,
                                     self.ver_bord_group),
                         BlockBorder(self, x + 1, y, self.w - 2, 1, Place.TOP,
                                     self.parent.all_sprites,
-                                        self.hor_bord_group),
+                                    self.hor_bord_group),
                         BlockBorder(self, x + 1, y + self.h - 1, self.w - 2, 1,
                                     Place.BOTTOM,
                                     self.parent.all_sprites,
@@ -63,14 +63,14 @@ class Block(spr.Sprite):
                                         self.ver_bord_group)
         if ver_bord and spr.collide_mask(self.parent.triplex, ver_bord)\
                 and ((ver_bord.place == Place.LEFT and old_vx >= 0) or
-                         (ver_bord.place == Place.RIGHT and old_vx <= 0)):
+                     (ver_bord.place == Place.RIGHT and old_vx <= 0)):
             self.parent.triplex.set_vx(-old_vx)
             self.crush_self = True
         hor_bord = spr.spritecollideany(self.parent.triplex,
                                         self.hor_bord_group)
         if hor_bord and spr.collide_mask(self.parent.triplex, hor_bord)\
                 and ((hor_bord.place == Place.TOP and old_vy >= 0) or
-                         (hor_bord.place == Place.BOTTOM and old_vy <= 0)):
+                     (hor_bord.place == Place.BOTTOM and old_vy <= 0)):
             self.parent.triplex.set_vy(-old_vy)
             self.crush_self = True
         if self.crush_self:

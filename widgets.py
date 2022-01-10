@@ -279,8 +279,8 @@ class TabWidget(BaseWidget):
                 for widget in self.widgets[i][0]:
                     widget.render(screen=self.surface)
                 pg.Surface.blit(screen, self.surface, (self.x,
-                                                       self.y + self.titles_h\
-                                                       - self.rects_w // 2))
+                                                       self.y + self.titles_h -
+                                                       self.rects_w // 2))
 
     def process_event(self, event, *args, **kwargs):
         for i, title in enumerate(self.titles_names):
@@ -294,7 +294,7 @@ class TabWidget(BaseWidget):
         for i in range(len(self.titles_names)):
             if i != self.selected_index:
                 self.widgets[i][1].set_color(self.main_color)
-    
+
     def get_widgets(self, index):
         return self.widgets[index][0]
 
@@ -575,16 +575,16 @@ class ScrollElement(BaseWidget):
         self.item_label = Label(self, (self.h + 2 * self.indent, self.indent,
                                        item_w, self.h - self.indent * 2),
                                 self.text, main_color=self.current_color,
-                                 back_color=self.back_color,
+                                back_color=self.back_color,
                                 font_size=self.font_size)
         self.num_label = Label(self, (self.indent, self.indent,
                                       self.h - self.indent * 2,
                                       self.h - self.indent * 2),
-                                str(self.number),
-                                main_color=self.current_color,
-                                back_color=self.back_color,
-                                alignment=HorAlign.CENTER,
-                                font_size=self.font_size)
+                               str(self.number),
+                               main_color=self.current_color,
+                               back_color=self.back_color,
+                               alignment=HorAlign.CENTER,
+                               font_size=self.font_size)
 
     def render(self, screen=None, index=0):
         screen = screen if screen is not None else self.parent.screen
@@ -659,7 +659,7 @@ class ResultsTextDisplay(BaseWidget):
         self.item_font_size = item_font_size
         self.results_font_size = get_max_font_size(str(max((self.victories,
                                                             self.defeats))),
-                                                   self.w // 3 -\
+                                                   self.w // 3 -
                                                    self.indent * 2,
                                                    start_font=result_font_size)
         self.rec_font_size = get_max_font_size(max((str(self.score),
@@ -688,7 +688,7 @@ class ResultsTextDisplay(BaseWidget):
                                    alignment=HorAlign.CENTER,
                                    font_size=self.item_font_size),
                              Label(self, (0, self.h // 3 * 2, self.w // 6,
-                                          self.h // 3),'Время:',
+                                          self.h // 3), 'Время:',
                                    main_color=self.main_color,
                                    alignment=HorAlign.CENTER,
                                    font_size=self.item_font_size),

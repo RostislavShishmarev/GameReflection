@@ -87,8 +87,8 @@ class Platform(AnimatedSprite):
         if self.parent.start:
             center_x = self.parent.triplex.rect.x +\
                        self.parent.triplex.rect.w // 2
-            if center_x <= self.rect.x + self.edge or center_x >=\
-                                    self.rect.x + self.w - self.edge:
+            if center_x <= self.rect.x +\
+                    self.edge or center_x >= self.rect.x + self.w - self.edge:
                 self.parent.triplex.move_to_x(self.rect.x + self.w // 2)
         self.parent.platform_changed_sound.play()
 
@@ -164,8 +164,8 @@ class Triplex(spr.Sprite):
         self.image = tr.scale(load_image("Triplex.png", -1), (self.w, self.h))
         self.rect = self.image.get_rect()
         self.rect.x = self.parent.w // 2 - self.w // 2
-        self.rect.y = self.parent.field_bottom -\
-                      self.parent.platform.h - self.h + 2
+        bottom = self.parent.field_bottom
+        self.rect.y = bottom - self.parent.platform.h - self.h + 2
         self.vx = self.vy = 0
 
         self.mask = pg.mask.from_surface(self.image)
