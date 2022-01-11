@@ -147,9 +147,9 @@ class InputBox(BaseWidget):
 
     def process_event(self, event, *args, **kwargs):
         if event.type == pg.MOUSEBUTTONDOWN:
-            if self.rect.collidepoint(event.pos):
+            if self.rect.collidepoint(event.pos) and event.button == 1:
                 self.active = not self.active
-            else:
+            elif event.button == 1:
                 self.active = False
             self.color = self.color_active if self.active\
                 else self.color_inactive
