@@ -31,11 +31,11 @@ class BaseWidget:
 
     def set_h(self, h):
         self.h = h
-        self.x1 = self.x + h
+        self.y1 = self.y + h
 
     def set_w(self, w):
         self.w = w
-        self.y1 = self.y + w
+        self.x1 = self.x + w
 
     def trans_pos(self, pos):
         '''Трансформирует абсолютную точку в относительную для дочерних
