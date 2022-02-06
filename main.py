@@ -137,7 +137,7 @@ class Settings:
     def __init__(self, parent):
         # Задаём атрибуты:
         self.parent = parent
-        self.size = (self.w, self.h) = (600, 500)
+        self.size = (self.w, self.h) = (600, 400)
         self.db = sqlite3.connect('DataBases/Reflection_db.db3')
         self.FPS = 60
         self.cursor_group = spr.Group()
@@ -199,13 +199,12 @@ class Settings:
                               bord_color=pg.Color(100, 200, 255),
                               light_image=load_image('Info_light.png'),
                               slot=self.info),
-                        Image(self, (self.indent,
-                                     self.h - self.indent - ret_h,
-                                     ret_h, ret_h),
-                              load_image('Return.png'),
+                        Image(self, (self.w - self.indent - ret_h,
+                                     self.indent, ret_h, ret_h),
+                              load_image('Exit.png'),
                               slot=self.open_mainwindow,
-                              light_image=load_image('Return_light.png'),
-                              bord_color=pg.Color(181, 230, 29),
+                              light_image=load_image('Exit_light.png'),
+                              bord_color=pg.Color(70, 202, 232),
                               key=pg.K_HOME, modifier=pg.KMOD_CTRL),
                         Button(self, (self.indent, round(ret_h * 1.2) + 4 *
                                       self.indent + labels_font_size * 2,
@@ -749,7 +748,8 @@ class MainWindow:
                                                  self.indent, res_w,
                                                  user_h + user_font),
                                           victories=self.victs,
-                                          defeats=self.defs)
+                                          defeats=self.defs,
+                                          title_font_size=26)
 
         # Основной цикл игры:
         while self.running:
