@@ -4,7 +4,7 @@ import pygame as pg
 import pygame.draw as dr
 import pygame.transform as tr
 
-from modules.functions import do_nothing, get_width, load_image, str_time,\
+from Modules.functions import do_nothing, get_width, load_image, str_time,\
     get_max_font_size
 
 

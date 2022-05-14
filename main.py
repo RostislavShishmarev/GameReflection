@@ -8,13 +8,13 @@ from math import floor
 import pygame as pg
 import pygame.mixer as mix
 import pygame.sprite as spr
-from modules.blocks import Block, DeathBlock, ExplodingBlock, ScBlock,\
+from Modules.blocks import Block, DeathBlock, ExplodingBlock, ScBlock,\
     BrickedBlock, CrushedBrickedBlock
-from modules.sprites import Platform, Triplex, Border
-from modules.widgets import Button, TextDisplay, Image, Label, ScrollList,\
+from Modules.sprites import Platform, Triplex, Border
+from Modules.widgets import Button, TextDisplay, Image, Label, ScrollList,\
     ResultsTextDisplay, TabWidget, HorAlign, InputBox
 
-from modules.functions import load_image, do_nothing, get_width,\
+from Modules.functions import load_image, do_nothing, get_width,\
     make_tuple_time, get_max_font_size, get_fone
 
 

@@ -2,7 +2,7 @@ import pygame as pg
 import pygame.sprite as spr
 import pygame.transform as tr
 
-from modules.functions import load_image
+from Modules.functions import load_image
 
 
 class Treasure(spr.Sprite):

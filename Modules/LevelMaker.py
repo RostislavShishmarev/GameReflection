@@ -6,7 +6,7 @@ import pygame as pg
 import pygame.draw as dr
 from widgets import Button
 
-from modules.functions import load_image
+from Modules.functions import load_image
 
 
 # Предназначен только для разработки.

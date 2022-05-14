@@ -3,10 +3,10 @@ from random import choice
 import pygame as pg
 import pygame.sprite as spr
 import pygame.transform as tr
-from modules.treasures import Treasure, HealthTreasure, DeathTreasure,\
+from Modules.treasures import Treasure, HealthTreasure, DeathTreasure,\
     LongMakerTreasure, ShortMakerTreasure
 
-from modules.functions import load_image, do_nothing
+from Modules.functions import load_image, do_nothing
 
 
 class Block(spr.Sprite):
