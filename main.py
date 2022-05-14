@@ -1,20 +1,21 @@
-import pygame as pg
-import pygame.sprite as spr
-import pygame.mixer as mix
-import sqlite3
 import csv
 import os
-
+import sqlite3
 from datetime import datetime as DateTime
 from datetime import timedelta as TimeDelta
 from math import floor
-from functions import load_image, do_nothing, get_width,\
-    make_tuple_time, get_max_font_size, get_fone
-from widgets import Button, TextDisplay, Image, Label, ScrollList,\
+
+import pygame as pg
+import pygame.mixer as mix
+import pygame.sprite as spr
+from modules.blocks import Block, DeathBlock, ExplodingBlock, ScBlock,\
+    BrickedBlock, CrushedBrickedBlock
+from modules.sprites import Platform, Triplex, Border
+from modules.widgets import Button, TextDisplay, Image, Label, ScrollList,\
     ResultsTextDisplay, TabWidget, HorAlign, InputBox
-from sprites import Platform, Triplex, Border
-from blocks import Block, DeathBlock, ExplodingBlock, ScBlock, BrickedBlock,\
-    CrushedBrickedBlock
+
+from modules.functions import load_image, do_nothing, get_width,\
+    make_tuple_time, get_max_font_size, get_fone
 
 
 class InfoWindow:
