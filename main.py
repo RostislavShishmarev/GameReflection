@@ -377,7 +377,9 @@ class GameWindow:
         self.temporary_group = spr.Group()
 
         # Открываем модель расположения блоков:
-        with open(self.mod_name, encoding='utf8') as model:
+        name = path(self.mod_name) if self.mod_name.endswith('StartModel.csv')\
+            else self.mod_name
+        with open(name, encoding='utf8') as model:
             self.blocks_model = list(csv.reader(model, delimiter=';'))
 
     def run(self):

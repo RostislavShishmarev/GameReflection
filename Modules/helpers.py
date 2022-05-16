@@ -65,7 +65,7 @@ def make_tuple_time(time_tuple):
 def path(*path_list):
     """ Get listed path, return absolute path,
     works for dev and for PyInstaller """
-    relative_path = os.path.abspath(os.path.join(*path_list))
+    relative_path = os.path.join(*path_list)
     if getattr(sys, 'frozen', False):
         base_path = sys._MEIPASS
     else:
