@@ -1,12 +1,13 @@
+import os
+import sys
+from datetime import datetime as DateTime
+
 import pygame as pg
 import pygame.transform as tr
-import os
-
-from datetime import datetime as DateTime
 
 
 def load_image(name, color_key=None):
-    fullname = 'Images/' + name
+    fullname = path('Images', name)
     try:
         image = pg.image.load(fullname)
     except pg.error as message:
@@ -59,3 +60,21 @@ def str_time(time_tuple):
 
 def make_tuple_time(time_tuple):
     return DateTime(2020, 1, 1, 1, *time_tuple)
+
+
+def path(*path_list):
+    """ Get listed path, return absolute path,
+    works for dev and for PyInstaller """
+    relative_path = os.path.abspath(os.path.join(*path_list))
+    if getattr(sys, 'frozen', False):
+        base_path = sys._MEIPASS
+    else:
+        base_path = os.getcwd()
+    return os.path.join(base_path, relative_path)
+
+
+def make_tree_if_not_exists():
+    if not os.path.exists('Reflection_data'):
+        os.mkdir('Reflection_data')
+    if not os.path.exists('Reflection_data/savings'):
+        os.mkdir('Reflection_data/savings')

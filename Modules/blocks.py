@@ -6,7 +6,7 @@ import pygame.transform as tr
 from Modules.treasures import Treasure, HealthTreasure, DeathTreasure,\
     LongMakerTreasure, ShortMakerTreasure
 
-from Modules.functions import load_image, do_nothing
+from Modules.helpers import load_image, do_nothing
 
 
 class Block(spr.Sprite):

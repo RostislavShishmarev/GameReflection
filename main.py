@@ -14,8 +14,11 @@ from Modules.sprites import Platform, Triplex, Border
 from Modules.widgets import Button, TextDisplay, Image, Label, ScrollList,\
     ResultsTextDisplay, TabWidget, HorAlign, InputBox
 
-from Modules.functions import load_image, do_nothing, get_width,\
-    make_tuple_time, get_max_font_size, get_fone
+from Modules.helpers import load_image, do_nothing, get_width,\
+    make_tuple_time, get_max_font_size, get_fone, path,\
+    make_tree_if_not_exists
+
+DB_PATH = 'Reflection_data/game.db3'
 
 
 class InfoWindow:
@@ -48,11 +51,11 @@ class InfoWindow:
         fone = get_fone(im, self.w, self.h)
         self.screen.blit(fone, (0, 0))
         pg.mouse.set_visible(False)
-        logo = load_image('Reflection_logo.png')
+        logo = load_image('Ref_logo.png')
         pg.display.set_icon(logo)
 
         if self.play_music:
-            mix.music.load('Sounds/main_fone.mp3')
+            mix.music.load(path('Sounds/main_fone.mp3'))
             mix.music.set_volume(0.1)
             mix.music.play(-1)
 
@@ -66,7 +69,7 @@ class InfoWindow:
         logo_color = pg.Color(0, 162, 232)
         self.logo_widgets = [Image(self, (self.indent, self.indent,
                                           logo_w, self.up_indent),
-                                   logo, bord_color=logo_color),
+                                   logo),
                              Label(self, (self.indent * 2 + logo_w,
                                           self.indent, 400, self.up_indent),
                                    'Правила игры',
@@ -139,7 +142,7 @@ class Settings:
         # Задаём атрибуты:
         self.parent = parent
         self.size = (self.w, self.h) = (600, 400)
-        self.db = sqlite3.connect('DataBases/Reflection_db.db3')
+        self.db = sqlite3.connect(DB_PATH)
         self.FPS = 60
         self.cursor_group = spr.Group()
         self.new_window_after_self = None
@@ -160,10 +163,10 @@ class Settings:
         fone = get_fone(im, self.w, self.h)
         self.screen.blit(fone, (0, 0))
         pg.mouse.set_visible(False)
-        pg.display.set_icon(load_image('Reflection_logo.png'))
+        pg.display.set_icon(load_image('Ref_logo.png'))
 
         if self.play_music:
-            mix.music.load('Sounds/main_fone.mp3')
+            mix.music.load(path('Sounds/main_fone.mp3'))
             mix.music.set_volume(0.1)
             mix.music.play(-1)
 
@@ -277,7 +280,7 @@ class Settings:
         cur.execute('''UPDATE user SET play_music = ?''', (self.play_music, ))
         self.db.commit()
         if self.play_music:
-            mix.music.load('Sounds/main_fone.mp3')
+            mix.music.load(path('Sounds/main_fone.mp3'))
             mix.music.set_volume(0.1)
             mix.music.play(-1)
         else:
@@ -325,7 +328,7 @@ class GameWindow:
                                      'Bricked_block_crushing.png'}
 
         self.parent = parent
-        self.mod_name = csv_model_name
+        self.mod_name = csv_model_name.replace('\\', '/')
         self.level_id = int(self.mod_name.split('/')[-1].split('_')[0][5:])
         self.score = score
         self.time = make_tuple_time(time)
@@ -392,22 +395,26 @@ class GameWindow:
         self.screen.blit(fone, (0, 0))
         pg.time.set_timer(SECOND, 1000)
         pg.mouse.set_visible(False)
-        pg.display.set_icon(load_image('Reflection_logo.png'))
+        pg.display.set_icon(load_image('Ref_logo.png'))
         if self.play_music:
-            mix.music.load('Sounds/play_fone.mp3')
+            mix.music.load(path('Sounds/play_fone.mp3'))
             mix.music.set_volume(0.1)
             mix.music.play(-1)
 
         # Создаём звуки:
-        self.collide_sound = mix.Sound('Sounds/collide.mp3')
-        self.win_sound = mix.Sound('Sounds/win.mp3')
-        self.game_over_sound = mix.Sound('Sounds/game_over.mp3')
-        self.crush_sound = mix.Sound('Sounds/crush.mp3')
-        self.death_collide_sound = mix.Sound('Sounds/death_collide.mp3')
-        self.life_added_sound = mix.Sound('Sounds/life_added.mp3')
-        self.platform_changed_sound = mix.Sound('Sounds/platform_changed.mp3')
-        self.treasure_sound = mix.Sound('Sounds/treasure_on_platform.mp3')
-        self.platform_crushed_sound = mix.Sound('Sounds/platform_crushing.mp3')
+        self.collide_sound = mix.Sound(path('Sounds/collide.mp3'))
+        self.win_sound = mix.Sound(path('Sounds/win.mp3'))
+        self.game_over_sound = mix.Sound(path('Sounds/game_over.mp3'))
+        self.crush_sound = mix.Sound(path('Sounds/crush.mp3'))
+        self.death_collide_sound = mix.Sound(path(
+            'Sounds/death_collide.mp3'))
+        self.life_added_sound = mix.Sound(path('Sounds/life_added.mp3'))
+        self.platform_changed_sound = mix.Sound(path(
+            'Sounds/platform_changed.mp3'))
+        self.treasure_sound = mix.Sound(path(
+            'Sounds/treasure_on_platform.mp3'))
+        self.platform_crushed_sound = mix.Sound(path(
+            'Sounds/platform_crushing.mp3'))
 
         # Создаём спрайты:
         self.platform = Platform(self, self.all_sprites)
@@ -523,13 +530,13 @@ class GameWindow:
         # Создаём имя будущего сохранения:
         cur = self.parent.db.cursor()
         login = cur.execute('''SELECT login FROM user''').fetchone()[0]
-        files = os.listdir('DataBases')
+        files = os.listdir('Reflection_data/savings')
         n_savings = len([f for f in files
                          if f.split('_')[0] ==
                          self.mod_name.split('/')[-1].split('_')[0] and
                          f.split('_')[1].startswith(login)])
-        name = self.mod_name.split('_')[0] + '\
-_' + login + str(n_savings + 1) + '.csv'
+        name = 'Reflection_data/savings/' + self.mod_name.split('/')[-1].split(
+            '_')[0] + '_' + login + str(n_savings + 1) + '.csv'
         # Создаём сохранение:
         with open(name, mode='w', encoding='utf8', newline='') as f:
             wr = csv.writer(f, delimiter=';', quotechar='"')
@@ -638,7 +645,8 @@ class MainWindow:
         self.size = (self.w, self.h) = (1300, 760)
         self.indent = 15
 
-        self.db = sqlite3.connect('DataBases/Reflection_db.db3')
+        make_tree_if_not_exists()
+        self.db = sqlite3.connect(DB_PATH)
         cur = self.db.cursor()
         levels = cur.execute('''SELECT name, way, score, time, id, opened
  FROM levels''').fetchall()
@@ -670,10 +678,10 @@ class MainWindow:
         fone = get_fone(im, self.w, self.h)
         self.screen.blit(fone, (0, 0))
         pg.mouse.set_visible(False)
-        pg.display.set_icon(load_image('Reflection_logo.png'))
+        pg.display.set_icon(load_image('Ref_logo.png'))
 
         if self.play_music:
-            mix.music.load('Sounds/main_fone.mp3')
+            mix.music.load(path('Sounds/main_fone.mp3'))
             mix.music.set_volume(0.1)
             mix.music.play(-1)
 

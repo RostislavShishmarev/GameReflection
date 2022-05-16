@@ -4,7 +4,7 @@ import pygame as pg
 import pygame.draw as dr
 import pygame.transform as tr
 
-from Modules.functions import do_nothing, get_width, load_image, str_time,\
+from Modules.helpers import do_nothing, get_width, load_image, str_time,\
     get_max_font_size
 
 
@@ -133,8 +133,6 @@ class InputBox(BaseWidget):
                  color_inactive=pg.Color(255, 0, 255),
                  back_color=pg.Color(0, 0, 0)):
         super().__init__(parent, rect)
-        self.db = sqlite3.connect('DataBases/Reflection_db.db3')
-        self.cur = self.db.cursor()
         self.font = pg.font.Font(None, font_size)
         self.rect = pg.Rect(rect)
         self.color = color_inactive

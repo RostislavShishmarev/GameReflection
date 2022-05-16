@@ -2,7 +2,7 @@ import pygame as pg
 import pygame.sprite as spr
 import pygame.transform as tr
 
-from Modules.functions import load_image, get_width
+from Modules.helpers import load_image, get_width
 
 
 class AnimatedSprite(spr.Sprite):

@@ -4,9 +4,9 @@ from math import ceil
 
 import pygame as pg
 import pygame.draw as dr
-from widgets import Button
+from Modules.widgets import Button
 
-from Modules.functions import load_image
+from Modules.helpers import load_image
 
 
 # Предназначен только для разработки.
@@ -35,7 +35,7 @@ class LevelMaker:
         self.button = Button(self, (width // 2 - but_w // 2,
                                     height - 5 - but_h, but_w, but_h),
                              'Сохранить', slot=self.save)
-        self.db = sqlite3.connect('../DataBases/Reflection_db.db3')
+        self.db = sqlite3.connect('../DataBases/game.db3')
 
     def render(self, screen):
         x, y = self.left, self.top
