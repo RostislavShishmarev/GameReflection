@@ -1,4 +1,14 @@
-# Игра "Отражение" 
+<table bordercolor="none">
+  <tr>
+    <td>
+      <img src="https://thumb.cloud.mail.ru/weblink/thumb/xw1/xufG/NTsCn9B5R" alt="Логотип" width="75" height="75" />
+    </td>
+    <td>
+      <h1>Игра "Отражение"</h1>
+    </td>
+  </tr>
+</table>
+
 ## _Проект для Яндекс Лицея по модулю pygame_
 
 ![Игровое окно](https://thumb.cloud.mail.ru/weblink/thumb/xw1/mqaw/V33Ntjdj7)
